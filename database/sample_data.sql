@@ -1,4 +1,7 @@
--- Sample Admin User (password: Admin123!)
+-- NEW  Admin User!
+INSERT INTO users (name, email, password, phone,role, status)
+VALUES ('newadmin', 'admin@example.com', '$2y$10$cI3f/xwQTczONlEcrsmSkOhz5IZ9wHbIKtc5IL0Yi/KK4tiu4.nMC', '0000000000', 'admin', 'active');
+
 INSERT INTO users (name, email, password, phone, role, status)
 VALUES (
   'Admin User',
