@@ -40,14 +40,17 @@ require_once __DIR__.'/../app/config/database.php';
   <!-- HERO SECTION -->
   <section class="container hero text-center mb-5">
     <div class="row align-items-center">
-      <div class="col-lg-7">
+      <div class="col-lg-7 d-flex flex-column justify-content-center align-items-center align-items-lg-start text-center text-lg-start px-4 px-md-5 py-5" style="min-height:320px;">
         <h1 class="display-4 mb-3" style="color:#003A6C">Unlock Business Potential, Together.</h1>
         <p class="lead mb-4" style="color:#0070B8">Connecting you with expert consultants for every business challenge.<br>Book. Collaborate. Succeed.</p>
-        <a href="<?= BASE_URL ?>register.php" class="btn btn-primary btn-lg me-2">Start Now</a>
-        <a href="<?= BASE_URL ?>login.php" class="btn btn-outline-primary btn-lg">Sign In</a>
+        <div>
+          <a href="<?= BASE_URL ?>register.php" class="btn btn-primary btn-lg me-2">Start Now</a>
+          <a href="<?= BASE_URL ?>login.php" class="btn btn-outline-primary btn-lg">Sign In</a>
+        </div>
       </div>
-      <div class="col-lg-5">
-        <img src="https://via.placeholder.com/440x300?text=ConsultEASE+Hero" class="rounded-img shadow" alt="Hero image placeholder">
+      <div class="col-lg-5 d-none d-lg-block position-relative p-0" style="min-height:320px;">
+        <div style="position:absolute; inset:0; background:url('https://it360.co.nz/wp-content/uploads/2024/10/consulting.jpg') center center / cover no-repeat; border-radius:18px;"></div>
+        <div style="position:absolute; inset:0; background:rgba(0,58,108,0.34); border-radius:18px;"></div>
       </div>
     </div>
   </section>
@@ -103,17 +106,14 @@ require_once __DIR__.'/../app/config/database.php';
   <!-- ABOUT SECTION -->
   <section class="container section-bg">
     <div class="row align-items-center">
-      <div class="col-lg-5">
-        <img src="https://via.placeholder.com/350x300?text=About+Placeholder" class="rounded-img shadow" alt="About image placeholder">
+      <div class="col-lg-5 mb-3 mb-lg-0">
+        <img src="https://www.ache.org/-/media/ache/blog/internal_culture_1024x425/blogheader_consultant-01.png?h=535&w=1290&la=en&hash=88F960F791607C9129E04E98F0999BDC" class="rounded-img shadow" alt="Consultant Banner" style="width:100%;max-width:410px;height:auto;">
       </div>
       <div class="col-lg-7">
         <h3 style="color:#003A6C;">About ConsultEASE</h3>
-        <p class="lead" style="color:#0070B8;">Your partner in finding solutions for your business aspirations.</p>
-        <ul>
-          <li>Expert-matching in real-time</li>
-          <li>Transparent pricing & easy payments</li>
-          <li>Progress tracking with every engagement</li>
-        </ul>
+        <p class="lead" style="color:#0070B8;">
+          ConsultEASE is your trusted platform for connecting with top business consultants across industries. We bring together vetted professionals and innovative businesses to solve challenges, drive growth, and deliver results you can see. Our marketplace simplifies expert-matching, ensures transparency in every engagement, and keeps your business data secure. 
+        </p>
       </div>
     </div>
   </section>
@@ -125,10 +125,10 @@ require_once __DIR__.'/../app/config/database.php';
       <div class="col-12 col-md-4">
         <div class="card h-100 shadow-sm">
           <div class="card-body">
-            <img src="https://via.placeholder.com/80?text=User" class="mb-3" alt="User A" style="border-radius:40px;">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXEkahlhDPkcLBTwrmh_XHbBkm0KLCW8Chzw&s" class="mb-3" alt="Michael" style="border-radius:40px;width:80px;height:80px;object-fit:cover;">
             <blockquote class="blockquote mb-0">
               <p>“ConsultEASE made it easy to connect with a top strategist for our retail launch!”</p>
-              <footer class="blockquote-footer">Michelle, Retail Owner</footer>
+              <footer class="blockquote-footer">Michael</footer>
             </blockquote>
           </div>
         </div>
@@ -136,10 +136,10 @@ require_once __DIR__.'/../app/config/database.php';
       <div class="col-12 col-md-4">
         <div class="card h-100 shadow-sm">
           <div class="card-body">
-            <img src="https://via.placeholder.com/80?text=User" class="mb-3" alt="User B" style="border-radius:40px;">
+            <img src="https://www.waldenu.edu/media/5058/seo-1630-bs-portrait-of-pretty-african-ame-362193577-1200x675" class="mb-3" alt="Ama" style="border-radius:40px;width:80px;height:80px;object-fit:cover;">
             <blockquote class="blockquote mb-0">
               <p>“Our HR improvements were fast-tracked thanks to great expert support.”</p>
-              <footer class="blockquote-footer">Kwame, HR Manager</footer>
+              <footer class="blockquote-footer">Ama</footer>
             </blockquote>
           </div>
         </div>
@@ -147,10 +147,10 @@ require_once __DIR__.'/../app/config/database.php';
       <div class="col-12 col-md-4">
         <div class="card h-100 shadow-sm">
           <div class="card-body">
-            <img src="https://via.placeholder.com/80?text=User" class="mb-3" alt="User C" style="border-radius:40px;">
+            <img src="https://unza.ecampus.edu.zm/wp-content/uploads/2020/09/Is-an-MBA-in-Human-Resource-Management-a-Good-Option-600x430.jpg" class="mb-3" alt="Boatemaa" style="border-radius:40px;width:80px;height:80px;object-fit:cover;">
             <blockquote class="blockquote mb-0">
               <p>“I loved the easy scheduling and how private everything stayed!”</p>
-              <footer class="blockquote-footer">Aditya, Entrepreneur</footer>
+              <footer class="blockquote-footer">Boatemaa</footer>
             </blockquote>
           </div>
         </div>
@@ -158,24 +158,75 @@ require_once __DIR__.'/../app/config/database.php';
     </div>
   </section>
 
-  <!-- TEAM SECTION (Optional) -->
-  <section class="container section-bg text-center">
-    <h4 class="mb-4" style="color:#003A6C;">Meet Our Core Team</h4>
-    <div class="row justify-content-center g-4">
-      <div class="col-12 col-md-4">
-        <img src="https://via.placeholder.com/130x130?text=Team+Member" alt="Team Photo" class="mb-2" style="border-radius:80px;">
-        <div class="fw-bold">Jane Doe</div>
-        <div class="text-muted">Lead Consultant</div>
+  <!-- REACH OUT SECTION -->
+  <section class="container section-bg my-5">
+    <div class="row g-4 align-items-stretch">
+      <div class="col-lg-6 d-flex flex-column justify-content-center h-100 mb-4 mb-lg-0 px-4 px-lg-5" style="min-height:350px;">
+        <h2 class="mb-2" style="color:#003A6C;font-weight:700;">Reach out</h2>
+        <div class="mb-3 mt-2" style="height:3px;width:55px;background:#0070B8;border-radius:3px;"></div>
+        <p class="mb-3" style="color:#222;opacity:0.85;">Questions about onboarding, partnerships, or business consulting? Leave us a note and we'll respond within one business day.</p>
+        <div class="mb-1"><strong>Email:</strong> <span style="color:#0070B8;">consultease@gmail.com</span></div>
+        <div class="mb-1"><strong>Phone:</strong> <span style="color:#0070B8;">+233 555 123 456</span></div>
+        <div class="mb-1"><strong>Head Office:</strong> 1 University Avenue, Berekuso</div>
+        <div class="mb-1"><strong>Security hotline:</strong> <span style="color:#0070B8;">consultease@gmail.com</span> <span class="badge bg-light text-dark border ms-2">24/7 • 1 hr SLA</span></div>
       </div>
-      <div class="col-12 col-md-4">
-        <img src="https://via.placeholder.com/130x130?text=Team+Member" alt="Team Photo" class="mb-2" style="border-radius:80px;">
-        <div class="fw-bold">Peter Mensah</div>
-        <div class="text-muted">Strategy Lead</div>
-      </div>
-      <div class="col-12 col-md-4">
-        <img src="https://via.placeholder.com/130x130?text=Team+Member" alt="Team Photo" class="mb-2" style="border-radius:80px;">
-        <div class="fw-bold">Linda Owusu</div>
-        <div class="text-muted">Client Support</div>
+      <div class="col-lg-6">
+        <?php
+        $contact_success = "";
+        $contact_error = "";
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['contact_submit'])) {
+          $name = trim($_POST['name'] ?? '');
+          $email = trim($_POST['email'] ?? '');
+          $role = trim($_POST['role'] ?? '');
+          $msg = trim($_POST['message'] ?? '');
+          if (!$name || !$email || !$msg) {
+            $contact_error = "All fields are required.";
+          } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $contact_error = "Enter a valid email address.";
+          } else {
+            // Prepare email (simple mail)
+            $to = 'consultease@gmail.com';
+            $subject = "Contact Form Submission: $name ($role)";
+            $body = "Name: $name\nEmail: $email\nRole: $role\nMessage:\n$msg";
+            $headers = "From: $email\r\nReply-To: $email";
+            if (@mail($to, $subject, $body, $headers)) {
+              $contact_success = "Thank you! Your message has been sent.";
+            } else {
+              $contact_error = "Sorry, something went wrong. Please try again later.";
+            }
+          }
+        }
+        ?>
+        <?php if($contact_success): ?>
+          <div class="alert alert-success"> <?= htmlspecialchars($contact_success) ?> </div>
+        <?php elseif($contact_error): ?>
+          <div class="alert alert-danger"> <?= htmlspecialchars($contact_error) ?> </div>
+        <?php endif; ?>
+        <form method="post" class="bg-light p-4 rounded shadow-sm">
+          <div class="mb-3 text-start">
+            <label class="form-label">Name</label>
+            <input required name="name" class="form-control" type="text" placeholder="Your name" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
+          </div>
+          <div class="mb-3 text-start">
+            <label class="form-label">Email</label>
+            <input required name="email" class="form-control" type="email" placeholder="you@example.com" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+          </div>
+          <div class="mb-3 text-start">
+            <label class="form-label">I am a</label>
+            <select name="role" class="form-select">
+              <option value="" disabled selected>Select your role</option>
+              <option value="Client" <?= (($_POST['role'] ?? '')=='Client'?'selected':'') ?>>Client</option>
+              <option value="Consultant" <?= (($_POST['role'] ?? '')=='Consultant'?'selected':'') ?>>Consultant</option>
+              <option value="Partner" <?= (($_POST['role'] ?? '')=='Partner'?'selected':'') ?>>Partner</option>
+              <option value="Other" <?= (($_POST['role'] ?? '')=='Other'?'selected':'') ?>>Other</option>
+            </select>
+          </div>
+          <div class="mb-3 text-start">
+            <label class="form-label">Message</label>
+            <textarea required name="message" class="form-control" rows="3" placeholder="How can we help?"><?= htmlspecialchars($_POST['message'] ?? '') ?></textarea>
+          </div>
+          <button type="submit" name="contact_submit" class="btn btn-primary btn-lg w-100">Submit</button>
+        </form>
       </div>
     </div>
   </section>
