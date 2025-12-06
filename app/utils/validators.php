@@ -19,6 +19,9 @@ function validate_registration($data) {
     if (empty($data['password']) || !preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/', $data['password'])) {
         $errors['password'] = "Password must be min 8 chars, include uppercase, lowercase, number, special char";
     }
+    if (isset($data['confirm_password']) && $data['password'] !== $data['confirm_password']) {
+        $errors['confirm_password'] = "Passwords do not match";
+    }
     return $errors;
 }
 

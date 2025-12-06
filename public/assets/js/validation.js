@@ -31,6 +31,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 valid = false;
             } else if(password) clearError(password);
 
+            // Confirm password
+            let confirmPassword = form.querySelector('[name="confirm_password"]');
+            if(confirmPassword && password) {
+                if(confirmPassword.value !== password.value) {
+                    showError(confirmPassword, "Passwords do not match");
+                    valid = false;
+                } else {
+                    clearError(confirmPassword);
+                }
+            }
+
             // Name
             let name = form.querySelector('[name="name"]');
             if(name && !/^[a-zA-Z ]+$/.test(name.value)) {
