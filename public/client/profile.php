@@ -15,11 +15,10 @@ require_role('client');
 <body>
 <div class="container mt-4">
     <h2 class="mb-3" style="color:#003A6C;">My Profile</h2>
-    <form class="card p-4 shadow-sm" method="post" action="<?= BASE_URL ?>api/auth.php?action=update_profile" novalidate>
-        <!-- Use PHP to pre-populate fields with user data -->
+    <form class="card p-4 shadow-sm" id="profile-form" autocomplete="off" novalidate>
         <div class="mb-3">
             <label class="form-label">Name</label>
-            <input name="name" type="text" class="form-control" required value="<?= htmlspecialchars($_SESSION['name']) ?>">
+            <input name="name" id="profile-name-input" type="text" class="form-control" required value="<?= htmlspecialchars($_SESSION['name']) ?>">
         </div>
         <div class="mb-3">
             <label class="form-label">Email</label>
@@ -27,10 +26,35 @@ require_role('client');
         </div>
         <div class="mb-3">
             <label class="form-label">Phone</label>
-            <input name="phone" type="text" class="form-control" value="">
+            <input name="phone" id="profile-phone-input" type="text" class="form-control" value="<?= htmlspecialchars($_SESSION['phone'] ?? '') ?>">
         </div>
         <button type="submit" class="btn btn-primary">Update Profile</button>
     </form>
+    <div id="profile-toast" style="position:fixed;top:30px;left:50%;transform:translateX(-50%);z-index:3000;min-width:220px;max-width:370px;display:none;"></div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+$(function(){
+  $('#profile-form').on('submit', function(e){
+    e.preventDefault();
+    var name = $('#profile-name-input').val();
+    var phone = $('#profile-phone-input').val();
+    $.post('../api/auth.php?action=update_profile', {name: name, phone: phone}, function(resp){
+      if(resp.success){
+        $('#profile-toast').stop(true,true).hide().html('<div class="alert alert-success shadow fw-bold mb-0" style="font-size:1.11em; border-radius:14px;">Profile updated successfully!</div>').fadeIn(180,function(){
+            setTimeout(function(){ $('#profile-toast').fadeOut(400); }, 1600);
+        });
+        // Optionally update the input values to be safe
+        if(resp.name) $('#profile-name-input').val(resp.name);
+      }else{
+        $('#profile-toast').stop(true,true).hide().html('<div class="alert alert-danger shadow fw-bold mb-0" style="font-size:1.09em; border-radius:14px;">'+(resp.error||'Update failed')+'</div>').fadeIn(180,function(){
+            setTimeout(function(){ $('#profile-toast').fadeOut(400); }, 2100);
+        });
+      }
+    },'json');
+  });
+});
+</script>
 </body>
 </html>

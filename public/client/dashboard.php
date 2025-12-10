@@ -109,6 +109,9 @@ $profilePic = 'https://ui-avatars.com/api/?name=' . urlencode($clientName) . '&b
   </div>
 </div>
 
+<!-- Modern profile update confirmation overlay -->
+<div id="profile-toast" style="position:fixed;top:30px;left:50%;transform:translateX(-50%);z-index:3000;min-width:220px;max-width:370px;display:none;"></div>
+
 <script>
 let consultants = [];
 let activeFilter = 'all', selectedIdx = 0;
@@ -167,15 +170,18 @@ $(function(){
     var name = $('#client-name-input').val();
     $.post('../api/auth.php?action=update_profile', formData, function(resp){
       if(resp.success){
-        $('#profile-toast').html('<div class="alert alert-success">Profile updated successfully!</div>');
-        if(resp.name) name = resp.name; // In case backend returns sanitized/official name
+        if(resp.name) name = resp.name;
         $('.clientNameDisplay').text(name);
         var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=003A6C&color=fff&size=64';
         $('.profile-mini').attr('src', avatarSrc);
-        // Gently reload page to update everything after 1.5s
-        setTimeout(()=>location.reload(), 1500);
+        // Modern animated toast
+        $('#profile-toast').stop(true,true).hide().html('<div class="alert alert-success shadow fw-bold mb-0" style="font-size:1.11em; border-radius:14px;">Profile updated successfully!</div>').fadeIn(180,function(){
+            setTimeout(function(){ $('#profile-toast').fadeOut(400); }, 1600);
+        });
       }else{
-        $('#profile-toast').html('<div class="alert alert-danger">'+(resp.error||'Update failed')+'</div>');
+        $('#profile-toast').stop(true,true).hide().html('<div class="alert alert-danger shadow fw-bold mb-0" style="font-size:1.09em; border-radius:14px;">'+(resp.error||'Update failed')+'</div>').fadeIn(180,function(){
+            setTimeout(function(){ $('#profile-toast').fadeOut(400); }, 2100);
+        });
       }
     },'json');
   });

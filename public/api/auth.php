@@ -1,9 +1,9 @@
 <?php
 require_once __DIR__ . '/../../app/controllers/AuthController.php';
 require_once __DIR__ . '/../../app/controllers/ClientController.php'; // Added for update_profile
+require_once __DIR__ . '/../../app/middleware/role_middleware.php'; // Ensure require_role() is available
 
 $action = $_GET['action'] ?? '';
-session_start();
 
 switch ($action) {
     case 'register':
