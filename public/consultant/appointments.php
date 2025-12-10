@@ -54,6 +54,8 @@ require_role('consultant');
     </div>
   </div></div>
 </div>
+<div class="modal fade" id="problemModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Business Problem</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="problemModalBody"></div></div></div></div>
+<div class="modal fade" id="detailsModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Session Details</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="detailsModalBody"></div></div></div></div>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
 function statusBadge(status) {
@@ -101,8 +103,13 @@ function fetchAppointments() {
         }
         feedbackUI += '</div>';
       }
-      html += `<tr><td>${a.client_name}</td><td>${a.date}</td><td>${a.start_time} - ${a.end_time}</td><td><span class='${badge}'>${a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span></td>`+
-              `<td class='text-secondary'>-</td><td>${btns}${feedbackUI||''}</td></tr>`;
+      let problem = a.business_problem || '-';
+      let truncated = problem.length > 50 ? problem.substr(0, 50) + '...' : problem;
+      let viewBtn = problem.length > 50 ? `<button class='btn btn-info btn-sm ms-1 view-problem' data-problem="${$('<div>').text(problem).html()}">View</button>` : '';
+      let problemCell = truncated + viewBtn;
+      let detailsBtn = `<button class='btn btn-secondary btn-sm ms-2 view-details' data-client="${a.client_name}" data-email="${a.email||'-'}" data-date="${a.date}" data-time="${a.start_time} - ${a.end_time}" data-problem="${$('<div>').text(problem).html()}">Details</button>`;
+      let markBtn = `<button class='btn btn-outline-primary btn-sm mark-completed' data-id='${a.appointment_id}'>Mark as Completed</button>`;
+      html += `<tr><td>${a.client_name}</td><td>${a.date}</td><td>${a.start_time} - ${a.end_time}</td><td><span class='${badge}'>${a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span></td><td>${problemCell}</td><td>${markBtn} ${detailsBtn}</td></tr>`;
     });
     $('#appts-table').html(html);
     // Feedback modal logic (existing)
@@ -143,6 +150,19 @@ $(document).ready(function() {
     $.post('../api/appointments.php?action=reject', { appointment_id: id }, function(resp) {
       fetchAppointments();
     }, 'json');
+  });
+  $('#appts-table').on('click', '.view-problem', function(){
+    $('#problemModalBody').text($(this).data('problem'));
+    $('#problemModal').modal('show');
+  });
+  $('#appts-table').on('click', '.view-details', function(){
+    const c = $(this).data('client'),
+          e = $(this).data('email'),
+          d = $(this).data('date'),
+          t = $(this).data('time'),
+          p = $(this).data('problem');
+    $('#detailsModalBody').html(`<b>Client:</b> ${c}<br><b>Email:</b> ${e}<br><b>Date:</b> ${d}<br><b>Time:</b> ${t}<br><b>Business Problem:</b><br>${p}`);
+    $('#detailsModal').modal('show');
   });
 });
 $('#feedback-form').on('submit', function(e){

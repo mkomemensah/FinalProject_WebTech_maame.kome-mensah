@@ -18,6 +18,10 @@ $stmt->execute([$consultant_id]); $slots=$stmt->fetchAll(); $stats['avail']=coun
 // Feedback needed
 $stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name as client_name FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id LEFT JOIN feedback f ON f.appointment_id=a.appointment_id WHERE a.consultant_id=? AND a.status='completed' AND f.feedback_id IS NULL");
 $stmt->execute([$consultant_id]); $feedbacks=$stmt->fetchAll(); $stats['feedback']=count($feedbacks);
+// Query completed meetings:
+$completed_stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name AS client_name, u.email, f.consultant_notes, f.client_notes FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id LEFT JOIN feedback f ON f.appointment_id = a.appointment_id WHERE a.consultant_id = ? AND a.status = 'completed' ORDER BY v.date DESC, v.start_time DESC");
+$completed_stmt->execute([$consultant_id]);
+$completed = $completed_stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -73,62 +77,100 @@ body{background:linear-gradient(120deg,#eaf2fa 0%,#d5e3fa 100%);font-family:'Seg
 </nav>
 <div class="container mb-5">
   <div class="row g-4 mb-1">
-    <div class="col-xl-7">
+    <div class="col-xl-7 col-lg-7 col-12">
+      <!-- Upcoming Sessions -->
       <div class="glass-card mb-4">
-        <div class="fs-4 fw-bold mb-2">Upcoming Sessions <span class="badge bg-primary text-white ms-2"><?= $stats['upcoming']?></span></div>
-        <div class="card-scroll">
-          <?php foreach($upcoming as $appt): ?>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fs-4 fw-bold">Upcoming Sessions</div>
+          <span class="badge bg-primary text-white ms-2"><?=$stats['upcoming']?></span>
+        </div>
+        <div class="card-scroll mb-2">
+          <?php
+$nowDT = new DateTime('now', new DateTimeZone('Africa/Accra'));
+foreach($upcoming as $appt):
+?>
           <div class="session-card">
             <img class="avatar mb-2" src="https://ui-avatars.com/api/?name=<?=urlencode($appt['client_name'])?>&background=0070B8&color=fff" alt="">
             <div class="session-meta"><?=htmlspecialchars($appt['client_name'])?></div>
             <div class="status-tag mb-1">Confirmed</div>
             <div class="session-t"><?=htmlspecialchars($appt['date'])?> <?=htmlspecialchars($appt['start_time'])?> - <?=htmlspecialchars($appt['end_time'])?></div>
-            <a href="appointments.php#appt-<?=$appt['appointment_id']?>" class="btn blue-accent btn-sm w-100">View</a>
+            <a href="appointments.php#appt-<?=$appt['appointment_id']?>" class="btn blue-accent btn-sm w-100 mb-2">View</a>
+            <button class="btn btn-outline-primary btn-sm w-100 mark-as-completed" data-id="<?=$appt['appointment_id']?>">Mark as Completed</button>
           </div>
-          <?php endforeach; if(!$upcoming):?><div class="session-card">No sessions scheduled.</div><?php endif;?>
+<?php endforeach; if(!$upcoming):?><div class="session-card">No sessions scheduled.</div><?php endif;?>
         </div>
       </div>
-      <div class="glass-card">
-        <div class="fs-4 fw-bold mb-1">Pending Approvals <span class="badge bg-warning text-dark ms-2"><?=$stats['pending']?></span></div>
+      <!-- Completed Meetings -->
+      <div class="glass-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fs-4 fw-bold">Completed Meetings</div>
+          <span class="badge bg-success text-white ms-2"><?php echo count($completed); ?></span>
+        </div>
+        <div class="completed-card-scroll mb-2">
+          <?php foreach($completed as $appt): ?>
+            <div class="session-card" style="background:#f8fff8;">
+              <img class="avatar mb-2" src="https://ui-avatars.com/api/?name=<?=urlencode($appt['client_name'])?>&background=79e08c&color=222" alt="">
+              <div class="session-meta"><?=htmlspecialchars($appt['client_name'])?></div>
+              <div class="status-tag mb-1 bg-success text-white" style="background:#90deba!important;color:#155f34!important;">Completed</div>
+              <div class="session-t"><?=htmlspecialchars($appt['date'])?> <?=htmlspecialchars($appt['start_time'])?> - <?=htmlspecialchars($appt['end_time'])?></div>
+              <?php if($appt['consultant_notes']): ?>
+                <div class="small mt-1 text-success">Feedback Given</div>
+              <?php else: ?>
+                <div class="small mt-1 text-muted">No feedback yet</div>
+              <?php endif; ?>
+              <a href="feedback.php?appointment_id=<?=$appt['appointment_id']?>" class="btn btn-outline-primary btn-sm w-100 mt-2">View / Give Feedback</a>
+            </div>
+          <?php endforeach; if(!$completed):?><div class="session-card">No completed meetings yet.</div><?php endif; ?>
+        </div>
+      </div>
+      <!-- Pending Approvals -->
+      <div class="glass-card mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <div class="fs-4 fw-bold">Pending Approvals</div>
+          <span class="badge bg-warning text-dark ms-2"><?=$stats['pending']?></span>
+        </div>
         <div class="table-responsive approvals-table">
-        <table class="table table-borderless align-middle mb-0">
-          <thead class="small text-muted">
-            <tr><th>Name</th><th>Time</th><th></th></tr>
-          </thead>
-          <tbody>
-          <?php foreach($pending as $req): ?>
-            <tr>
-              <td><img class="avatar me-1" src="https://ui-avatars.com/api/?name=<?=urlencode($req['client_name'])?>&background=f0ad4e&color=222" alt=""> <?=htmlspecialchars($req['client_name'])?></td>
-              <td><?=htmlspecialchars($req['date'])?> <span class="text-muted small ms-1"><?=htmlspecialchars($req['start_time'])?></span></td>
-              <td>
-                <button class="btn btn-success btn-sm accept-appt" data-id="<?=$req['appointment_id']?>">Accept</button>
-                <button class="btn btn-danger btn-sm reject-appt" data-id="<?=$req['appointment_id']?>">Reject</button>
-              </td>
-            </tr>
-          <?php endforeach;if(!$pending): ?><tr><td colspan=3 class="text-muted">No pending requests.</td></tr><?php endif; ?>
-          </tbody>
-        </table>
+          <table class="table table-borderless align-middle mb-0">
+            <thead class="small text-muted"><tr><th>Name</th><th>Time</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach($pending as $req): ?>
+              <tr>
+                <td><img class="avatar me-1" src="https://ui-avatars.com/api/?name=<?=urlencode($req['client_name'])?>&background=f0ad4e&color=222" alt=""> <?=htmlspecialchars($req['client_name'])?></td>
+                <td><?=htmlspecialchars($req['date'])?> <span class="text-muted small ms-1"><?=htmlspecialchars($req['start_time'])?></span></td>
+                <td>
+                  <button class="btn btn-success btn-sm accept-appt" data-id="<?=$req['appointment_id']?>">Accept</button>
+                  <button class="btn btn-danger btn-sm reject-appt" data-id="<?=$req['appointment_id']?>">Reject</button>
+                </td>
+              </tr>
+            <?php endforeach; if(!$pending): ?><tr><td colspan=3 class="text-muted">No pending requests.</td></tr><?php endif; ?>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-    <div class="col-xl-5">
-      <div class="glass-card mb-4">
-        <div class="fs-5 fw-bold mb-3">Manage Availability <span class="badge bg-info text-dark ms-2"><?= $stats['avail']?></span></div>
+    <div class="col-xl-5 col-lg-5 col-12">
+      <!-- Availability -->
+      <div class="glass-card mb-4" style="min-height:230px;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="fs-5 fw-bold">Manage Availability</div>
+          <span class="badge bg-info text-dark ms-2"><?= $stats['avail']?></span>
+        </div>
         <div class="avail-card mb-3">
-          <div class="row mb-2">
-            <div class="col-6 small">Upcoming Slot:</div>
-            <div class="col-6 text-muted small">Add, edit, remove slots</div>
-          </div>
+          <div class="row mb-2"><div class="col-6 small">Upcoming Slot:</div><div class="col-6 text-muted small">Add, edit, remove slots</div></div>
           <div class="d-flex gap-2 flex-wrap">
             <?php foreach($slots as $slot):?>
-              <span class="badge badge-info"><?=htmlspecialchars($slot['date'])?> <?=substr($slot['start_time'],0,5)?>-<?=substr($slot['end_time'],0,5)?></span>
+            <span class="badge badge-info"><?=htmlspecialchars($slot['date'])?> <?=substr($slot['start_time'],0,5)?>-<?=substr($slot['end_time'],0,5)?></span>
             <?php endforeach;if(!$slots):?><span class="text-muted">No available slots.</span><?php endif; ?>
           </div>
           <a href="availability.php" class="btn btn-outline-primary mt-3 card-btn w-100">+ Add Time Slot</a>
         </div>
       </div>
+      <!-- Feedback to Submit -->
       <div class="glass-card feedback-card mb-3">
-        <div class="fs-5 fw-bold mb-3">Feedback to Submit <span class="badge bg-warning text-dark ms-2"><?=$stats['feedback']?></span></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="fs-5 fw-bold">Feedback to Submit</div>
+          <span class="badge bg-warning text-dark ms-2"><?=$stats['feedback']?></span>
+        </div>
         <?php foreach($feedbacks as $todo): ?>
         <div class="mb-3 bg-white text-dark p-2 rounded">
           <b><?=htmlspecialchars($todo['client_name'])?></b> <span class="badge bg-info">Session Ended</span><br>
@@ -158,7 +200,8 @@ function refreshConsultantDashboard() {
         <div class="session-meta">${a.client_name}</div>
         <div class="status-tag mb-1">Confirmed</div>
         <div class="session-t">${a.date} ${a.start_time} - ${a.end_time}</div>
-        <a href="appointments.php#appt-${a.appointment_id}" class="btn blue-accent btn-sm w-100">View</a>
+        <a href="appointments.php#appt-${a.appointment_id}" class="btn blue-accent btn-sm w-100 mb-2">View</a>
+        <button class="btn btn-outline-primary btn-sm w-100 mark-as-completed" data-id="${a.appointment_id}">Mark as Completed</button>
       </div>`)
       .join('');
     } else {
@@ -202,6 +245,23 @@ $(document).on('click', '.accept-appt, .reject-appt', function() {
       showToast(isAccept ? 'Appointment accepted!' : 'Appointment rejected.', isAccept);
     } else {
       showToast(resp.error||'Error: Could not update appointment.', false);
+    }
+    refreshConsultantDashboard();
+  }, 'json').fail(function() {
+    showToast('Server error: please try again or refresh.', false);
+    refreshConsultantDashboard();
+  });
+});
+$(document).on('click', '.mark-as-completed', function() {
+  var btn = $(this);
+  if(btn.prop('disabled')) return;
+  btn.prop('disabled', true);
+  var id = btn.data('id');
+  $.post('../api/appointments.php?action=mark_completed', { appointment_id: id }, function(resp) {
+    if (resp.success) {
+      showToast('Session marked as completed!', true);
+    } else {
+      showToast(resp.error||'Error: Could not mark completed.', false);
     }
     refreshConsultantDashboard();
   }, 'json').fail(function() {
