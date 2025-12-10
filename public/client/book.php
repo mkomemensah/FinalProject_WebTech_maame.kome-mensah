@@ -21,11 +21,7 @@ require_role('client');
     <label class="form-label">Consultant *</label>
     <select id="consultant-select" class="form-select" required name="consultant_id"></select>
   </div>
-  <div id="slot-row" class="mb-3" style="display:none">
-    <label class="form-label">Available Slots *</label>
-    <select id="slot-select" class="form-select" name="availability_id"></select>
-  </div>
-  <div id="manual-row" class="mb-3 row g-2 align-items-center" style="display:none">
+  <div id="manual-row" class="mb-3 row g-2 align-items-center" style="display:block">
     <div class="col-6">
       <label class="form-label">Date *</label>
       <input name="date" id="date-input" type="date" class="form-control">
@@ -62,32 +58,6 @@ $.getJSON('../api/consultants.php?action=list', function(list){
   }
   $('#consultant-select').html('<option value="">Select consultant...</option>' + 
     consultants.map(c=>`<option value="${c.consultant_id}">${c.name} (${c.expertise||''})</option>`).join(''));
-});
-
-// Show correct booking method depending on slots
-$('#consultant-select').on('change', function() {
-  const cid = $(this).val();
-  $('#msg').html('');
-  $('#slot-row').hide();
-  $('#manual-row').hide();
-  if (!cid) return;
-  $.getJSON('../api/availability.php?action=list&consultant_id='+cid, function(slots){
-    if (slots.length) {
-      $('#slot-row').show();
-      $('#slot-select').prop('required',true).html(
-        '<option value="">Select slot...</option>' +
-        slots.map(s=>
-          `<option value="${s.availability_id}">${s.date} (${s.start_time} - ${s.end_time})</option>`).join('')
-      );
-      $('#manual-row input').prop('required',false);
-      $('#manual-row').hide();
-    } else {
-      $('#manual-row').show();
-      $('#manual-row input').prop('required',true);
-      $('#slot-row').hide();
-      $('#slot-select').prop('required',false);
-    }
-  });
 });
 
 function setDateMinToday() {
@@ -131,7 +101,7 @@ $('#booking-form').off('submit').on('submit', function(e){
     if(resp.success) {
       $('#msg').html('<div class="alert alert-success">Booking request sent to consultant for confirmation!</div>');
       $('#booking-form')[0].reset();
-      $('#slot-row, #manual-row').hide();
+      $('#manual-row').show();
     } else {
       $('#msg').html('<div class="alert alert-danger">'+(resp.error||'Booking failed')+'</div>');
     }

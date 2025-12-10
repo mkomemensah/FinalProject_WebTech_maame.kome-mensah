@@ -3,26 +3,36 @@ require_once __DIR__.'/../../app/middleware/auth_middleware.php';
 require_once __DIR__.'/../../app/middleware/role_middleware.php';
 require_role('consultant');
 require_once __DIR__.'/../../app/config/database.php';
-$consultant_id = $_SESSION['user_id'];
+// Fix: map user_id to consultant_id
+$stmt = $pdo->prepare("SELECT consultant_id FROM consultants WHERE user_id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$row = $stmt->fetch();
+$consultant_id = $row ? $row['consultant_id'] : null;
 $now = date('Y-m-d H:i:s');
-// Next confirmed session
-$stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name AS client_name FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id WHERE a.consultant_id = ? AND a.status = 'confirmed' AND CONCAT(v.date, ' ', v.start_time) >= ? ORDER BY v.date, v.start_time LIMIT 1");
-$stmt->execute([$consultant_id, $now]);
-$next = $stmt->fetch();
-// Pending approvals
-$stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name as client_name FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id WHERE a.consultant_id=? AND a.status='pending' ORDER BY v.date,v.start_time");
-$stmt->execute([$consultant_id]); $pending = $stmt->fetchAll();
-// Stats - Sessions/Feedback (optional)
-$week_start = date('Y-m-d', strtotime('monday this week'));
-$month_start = date('Y-m-01');
-// Count sessions this week (confirmed/completed)
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments a JOIN availability v ON a.availability_id = v.availability_id WHERE a.consultant_id=? AND a.status IN ('confirmed','completed') AND v.date >= ?");
-$stmt->execute([$consultant_id, $week_start]);
-$sessions_week = $stmt->fetchColumn();
-// Count completed sessions this month
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments a JOIN availability v ON a.availability_id = v.availability_id WHERE a.consultant_id=? AND a.status = 'completed' AND v.date >= ?");
-$stmt->execute([$consultant_id, $month_start]);
-$sessions_month = $stmt->fetchColumn();
+if ($consultant_id) {
+  // Next confirmed session
+  $stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name AS client_name FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id WHERE a.consultant_id = ? AND a.status = 'confirmed' AND CONCAT(v.date, ' ', v.start_time) >= ? ORDER BY v.date, v.start_time LIMIT 1");
+  $stmt->execute([$consultant_id, $now]);
+  $next = $stmt->fetch();
+  // Pending approvals
+  $stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name as client_name FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id WHERE a.consultant_id=? AND a.status='pending' ORDER BY v.date,v.start_time");
+  $stmt->execute([$consultant_id]); $pending = $stmt->fetchAll();
+  // Stats - Sessions/Feedback (optional)
+  $week_start = date('Y-m-d', strtotime('monday this week'));
+  // Accepted bookings all time ('confirmed' OR 'completed')
+  $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE consultant_id=? AND status IN ('confirmed','completed')");
+  $stmt->execute([$consultant_id]);
+  $accepted_total = $stmt->fetchColumn();
+  // Cancelled bookings all time ('cancelled')
+  $stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE consultant_id=? AND status = 'cancelled'");
+  $stmt->execute([$consultant_id]);
+  $cancelled_total = $stmt->fetchColumn();
+} else {
+  $next = false;
+  $pending = [];
+  $accepted_total = 0;
+  $cancelled_total = 0;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -70,8 +80,8 @@ body{background:linear-gradient(120deg,#eaf2fa 0%,#d5e3fa 100%);font-family:'Seg
 </nav>
 <div class="container mb-5">
   <div class="dashboard-stats">
-    <div class="stat-card"><div class="stat-title">Sessions This Week</div><div class="stat-value"><?=$sessions_week?></div></div>
-    <div class="stat-card blue"><div class="stat-title">Completed This Month</div><div class="stat-value"><?=$sessions_month?></div></div>
+    <div class="stat-card"><div class="stat-title">Total Accepted Bookings</div><div class="stat-value"><?=$accepted_total?></div></div>
+    <div class="stat-card blue"><div class="stat-title">Total Cancelled Bookings</div><div class="stat-value"><?=$cancelled_total?></div></div>
     <div class="stat-card"><div class="stat-title">See Full Appointments</div><a href="appointments.php" class="btn btn-blue-main mt-2">All Appointments</a></div>
   </div>
   <div class="next-box<?php if(!$next)echo' empty';?>">
@@ -110,46 +120,78 @@ body{background:linear-gradient(120deg,#eaf2fa 0%,#d5e3fa 100%);font-family:'Seg
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
-function refreshConsultantDashboard() {
-  $.getJSON('../api/appointments.php?action=list', function(appts) {
-    // Next confirmed session
-    const confirmed = appts.filter(a => a.status === 'confirmed');
-    if (confirmed.length) {
-      const next = confirmed.sort((a,b)=>{
-        return new Date(a.date + 'T' + a.start_time) - new Date(b.date + 'T' + b.start_time);
-      })[0];
-      $('.next-box').removeClass('empty').html(`
-        <div class='fs-5 mb-2 fw-bold text-secondary'>Next Confirmed Session</div>
-        <div class='d-flex align-items-center gap-3 mb-2'><div><b>${next.client_name}</b></div><span class='badge bg-primary'>Upcoming</span></div>
-        <div class='mb-1'>Date: <b>${next.date}</b> | Time: <b>${next.start_time} - ${next.end_time}</b></div>
-        <a href="appointments.php#appt-${next.appointment_id}" class="btn btn-outline-primary btn-sm">Session Details</a>
-        <button class="btn btn-outline-success btn-sm mt-2 mark-as-completed" data-id="${next.appointment_id}">Mark as Completed</button>
-      `);
-    } else {
-      $('.next-box').addClass('empty').html(`<div class="text-secondary py-3">No confirmed sessions scheduled yet.</div>`);
-    }
-    // Pending approvals
-    let pending = appts.filter(a => a.status === 'pending');
-    let phtml = '';
-    if (pending.length) {
-      phtml = pending.map(req => `
-        <tr>
-          <td><img class="avatar me-1" src="https://ui-avatars.com/api/?name=${encodeURIComponent(req.client_name)}&background=f0ad4e&color=222"> ${req.client_name}</td>
-          <td>${req.date} <span class="text-muted small ms-1">${req.start_time}</span></td>
-          <td>
-            <button class="btn btn-success btn-sm accept-appt" data-id="${req.appointment_id}">Accept</button>
-            <button class="btn btn-danger btn-sm reject-appt" data-id="${req.appointment_id}">Reject</button>
-          </td>
-        </tr>
-      `).join('');
-    } else {
-      phtml = '<tr><td colspan=3 class="text-muted">No pending requests.</td></tr>';
-    }
-    $('.approvals-table tbody').html(phtml);
-  });
-}
-setInterval(refreshConsultantDashboard, 30000);
-refreshConsultantDashboard();
+// function refreshConsultantDashboard() {
+//   $.getJSON('../api/appointments.php?action=list', function(appts) {
+//     // Fix: map user_id to consultant_id
+//     const user_id = <?=json_encode($_SESSION['user_id'])?>;
+//     let consultant_id = null;
+//     if (appts && appts.length) {
+//       const user = appts.find(a => a.user_id === user_id);
+//       if (user) {
+//         consultant_id = user.consultant_id;
+//       }
+//     }
+
+//     if (!consultant_id) {
+//       $('.next-box').addClass('empty').html(`<div class="text-secondary py-3">No consultant profile found.</div>`);
+//       $('.approvals-table tbody').html('<tr><td colspan=3 class="text-muted">No pending requests.</td></tr>');
+//       $('.stat-card.blue').html('<div class="stat-title">Total Cancelled Bookings</div><div class="stat-value">0</div>');
+//       $('.stat-card').eq(0).html('<div class="stat-title">Total Accepted Bookings</div><div class="stat-value">0</div>');
+//       return;
+//     }
+
+//     const now = new Date();
+//     // Next confirmed session
+//     const confirmed = appts.filter(a => a.status === 'confirmed');
+//     if (confirmed.length) {
+//       const next = confirmed.sort((a,b)=>{
+//         return new Date(a.date + 'T' + a.start_time) - new Date(b.date + 'T' + b.start_time);
+//       })[0];
+//       $('.next-box').removeClass('empty').html(`
+//         <div class='fs-5 mb-2 fw-bold text-secondary'>Next Confirmed Session</div>
+//         <div class='d-flex align-items-center gap-3 mb-2'><div><b>${next.client_name}</b></div><span class='badge bg-primary'>Upcoming</span></div>
+//         <div class='mb-1'>Date: <b>${next.date}</b> | Time: <b>${next.start_time} - ${next.end_time}</b></div>
+//         <a href="appointments.php#appt-${next.appointment_id}" class="btn btn-outline-primary btn-sm">Session Details</a>
+//         <button class="btn btn-outline-success btn-sm mt-2 mark-as-completed" data-id="${next.appointment_id}">Mark as Completed</button>
+//       `);
+//     } else {
+//       $('.next-box').addClass('empty').html(`<div class="text-secondary py-3">No confirmed sessions scheduled yet.</div>`);
+//     }
+//     // Pending approvals
+//     let pending = appts.filter(a => a.status === 'pending');
+//     let phtml = '';
+//     if (pending.length) {
+//       phtml = pending.map(req => `
+//         <tr>
+//           <td><img class="avatar me-1" src="https://ui-avatars.com/api/?name=${encodeURIComponent(req.client_name)}&background=f0ad4e&color=222"> ${req.client_name}</td>
+//           <td>${req.date} <span class="text-muted small ms-1">${req.start_time}</span></td>
+//           <td>
+//             <button class="btn btn-success btn-sm accept-appt" data-id="${req.appointment_id}">Accept</button>
+//             <button class="btn btn-danger btn-sm reject-appt" data-id="${req.appointment_id}">Reject</button>
+//           </td>
+//         </tr>
+//       `).join('');
+//     } else {
+//       phtml = '<tr><td colspan=3 class="text-muted">No pending requests.</td></tr>';
+//     }
+//     $('.approvals-table tbody').html(phtml);
+
+//     // Stats - Sessions/Feedback (optional)
+//     // Accepted bookings all time ('confirmed' OR 'completed')
+//     const accepted_stmt = $pdo.prepare("SELECT COUNT(*) FROM appointments WHERE consultant_id=? AND status IN ('confirmed','completed')");
+//     accepted_stmt.execute([consultant_id]);
+//     const accepted_total = accepted_stmt.fetchColumn();
+//     $('.stat-card').eq(0).html('<div class="stat-title">Total Accepted Bookings</div><div class="stat-value">'+accepted_total+'</div>');
+
+//     // Cancelled bookings all time ('cancelled')
+//     const cancelled_stmt = $pdo.prepare("SELECT COUNT(*) FROM appointments WHERE consultant_id=? AND status = 'cancelled'");
+//     cancelled_stmt.execute([consultant_id]);
+//     const cancelled_total = cancelled_stmt.fetchColumn();
+//     $('.stat-card.blue').html('<div class="stat-title">Total Cancelled Bookings</div><div class="stat-value">'+cancelled_total+'</div>');
+//   });
+// }
+// setInterval(refreshConsultantDashboard, 30000);
+// refreshConsultantDashboard();
 $(document).on('click', '.accept-appt, .reject-appt', function() {
   var btn = $(this);
   if (btn.prop('disabled')) return;
@@ -163,10 +205,10 @@ $(document).on('click', '.accept-appt, .reject-appt', function() {
     } else {
       showToast(resp.error||'Error: Could not update appointment.', false);
     }
-    refreshConsultantDashboard();
+    // refreshConsultantDashboard(); // This line is removed as per the edit hint
   }, 'json').fail(function() {
     showToast('Server error: please try again or refresh.', false);
-    refreshConsultantDashboard();
+    // refreshConsultantDashboard(); // This line is removed as per the edit hint
   });
 });
 $(document).on('click', '.mark-as-completed', function() {
@@ -180,10 +222,10 @@ $(document).on('click', '.mark-as-completed', function() {
     } else {
       showToast(resp.error||'Error: Could not mark completed.', false);
     }
-    refreshConsultantDashboard();
+    // refreshConsultantDashboard(); // This line is removed as per the edit hint
   }, 'json').fail(function() {
     showToast('Server error: please try again or refresh.', false);
-    refreshConsultantDashboard();
+    // refreshConsultantDashboard(); // This line is removed as per the edit hint
   });
 });
 function showToast(msg, positive) {
