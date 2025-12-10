@@ -4,24 +4,25 @@ require_once __DIR__.'/../../app/middleware/role_middleware.php';
 require_role('consultant');
 require_once __DIR__.'/../../app/config/database.php';
 $consultant_id = $_SESSION['user_id'];
-$stats = [ 'pending'=>0, 'upcoming'=>0, 'feedback'=>0, 'avail'=>0 ];
 $now = date('Y-m-d H:i:s');
-// Upcoming confirmed sessions
-$stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name AS client_name, u.email FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id WHERE a.consultant_id = ? AND a.status = 'confirmed' AND CONCAT(v.date, ' ', v.start_time) >= ? ORDER BY v.date, v.start_time");
-$stmt->execute([$consultant_id, $now]); $upcoming = $stmt->fetchAll(); $stats['upcoming']=count($upcoming);
+// Next confirmed session
+$stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name AS client_name FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id WHERE a.consultant_id = ? AND a.status = 'confirmed' AND CONCAT(v.date, ' ', v.start_time) >= ? ORDER BY v.date, v.start_time LIMIT 1");
+$stmt->execute([$consultant_id, $now]);
+$next = $stmt->fetch();
 // Pending approvals
 $stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name as client_name FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id WHERE a.consultant_id=? AND a.status='pending' ORDER BY v.date,v.start_time");
-$stmt->execute([$consultant_id]); $pending = $stmt->fetchAll(); $stats['pending']=count($pending);
-// Availability slots
-$stmt = $pdo->prepare("SELECT * FROM availability WHERE consultant_id=? AND (date>CURDATE() OR (date=CURDATE() AND end_time>=CURTIME())) ORDER BY date,start_time");
-$stmt->execute([$consultant_id]); $slots=$stmt->fetchAll(); $stats['avail']=count($slots);
-// Feedback needed
-$stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name as client_name FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id LEFT JOIN feedback f ON f.appointment_id=a.appointment_id WHERE a.consultant_id=? AND a.status='completed' AND f.feedback_id IS NULL");
-$stmt->execute([$consultant_id]); $feedbacks=$stmt->fetchAll(); $stats['feedback']=count($feedbacks);
-// Query completed meetings:
-$completed_stmt = $pdo->prepare("SELECT a.*, v.date, v.start_time, v.end_time, u.name AS client_name, u.email, f.consultant_notes, f.client_notes FROM appointments a JOIN availability v ON a.availability_id = v.availability_id JOIN users u ON a.client_id = u.user_id LEFT JOIN feedback f ON f.appointment_id = a.appointment_id WHERE a.consultant_id = ? AND a.status = 'completed' ORDER BY v.date DESC, v.start_time DESC");
-$completed_stmt->execute([$consultant_id]);
-$completed = $completed_stmt->fetchAll();
+$stmt->execute([$consultant_id]); $pending = $stmt->fetchAll();
+// Stats - Sessions/Feedback (optional)
+$week_start = date('Y-m-d', strtotime('monday this week'));
+$month_start = date('Y-m-01');
+// Count sessions this week (confirmed/completed)
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments a JOIN availability v ON a.availability_id = v.availability_id WHERE a.consultant_id=? AND a.status IN ('confirmed','completed') AND v.date >= ?");
+$stmt->execute([$consultant_id, $week_start]);
+$sessions_week = $stmt->fetchColumn();
+// Count completed sessions this month
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM appointments a JOIN availability v ON a.availability_id = v.availability_id WHERE a.consultant_id=? AND a.status = 'completed' AND v.date >= ?");
+$stmt->execute([$consultant_id, $month_start]);
+$sessions_month = $stmt->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -33,37 +34,29 @@ $completed = $completed_stmt->fetchAll();
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.3/font/bootstrap-icons.css">
 <style>
 body{background:linear-gradient(120deg,#eaf2fa 0%,#d5e3fa 100%);font-family:'Segoe UI',Arial,sans-serif;}
-.navbar-custom{background:#073165;padding:.95rem 2vw;box-shadow:0 2px 18px #07316525;}
-.navbar-custom .nav-link, .navbar-custom .navbar-brand{color:#fff!important;font-weight:600;font-size:1.12rem;letter-spacing:0.5px;}
-.navbar-custom .nav-link.active,.navbar-custom .nav-link:focus{color:#90defb!important;border-bottom:2.5px solid #28b9ff;}
-.navbar-profile{background:#fff;border-radius:19px;padding:.3rem .9rem;margin-left:1rem;}
-.navbar-profile .dropdown-toggle,.navbar-profile .dropdown-item{color:#073165!important;font-weight:500;}
-.glass-card{background:rgba(255,255,255,.98);backdrop-filter:blur(2px);border-radius:20px;padding:2.2rem 1.8rem;box-shadow:0 7px 38px #0731651a;}
-.card-scroll{display:flex;overflow-x:auto;gap:1.2rem;}
-.session-card{background:#fefeff;border-radius:14px;box-shadow:0 2px 14px #003a6c11;min-width:235px;padding:1.2rem;flex:0 0 auto;}
-.session-card .avatar{width:47px;height:47px;border-radius:50%;object-fit:cover;}
-.session-meta{font-weight:600;font-size:1.09rem;margin-bottom:3px;}
-.session-t{font-size:.93rem;color:#226bb3;margin-bottom:2px;gap:3px;display:inline-block;font-weight:500;}
-.status-tag{border-radius:8px;padding:2px 8px;font-size:.78rem;background:#d5ebfd;color:#0070B8;font-weight:700;letter-spacing:0.2px;margin-right:2px;}
-.btn.blue-accent{background:#059CFF!important;color:#fff;font-weight:600;border-radius:12px;padding:.54rem 1.3rem;box-shadow:0 1px 10px #059cff2e;}
-.btn.blue-accent:active,.btn.blue-accent:focus{outline:none;box-shadow:0 2px 12px #059cff56;}
-.approvals-table{width:100%;background:#f8fcff;border-radius:14px;padding:1rem;}
-.approvals-table td,.approvals-table th{padding:.52rem .6rem;vertical-align:middle;font-size:.95rem;}
-.avail-card{background:#fafffd;border-radius:15px;padding:1rem;margin-bottom:1.4rem;box-shadow:0 1px 8px #0070b810;}
-.feedback-card{background:#fcfdfe;border-radius:17px;padding:1.1rem;margin-top:.3rem;box-shadow:0 1.5px 11px #0070b814;}
-.badge-info{background:#effafd;color:#1976d2;font-weight:600;font-size:.97rem;}
+.dashboard-stats{display:flex;flex-wrap:wrap;gap:1.4rem;margin-bottom:2.2rem;margin-top:.7rem;}
+.stat-card{background:#fff;border-radius:18px;box-shadow:0 2px 12px #003a6c13;padding:1.5rem 2.2rem;min-width:170px;flex:1 1 170px;display:flex;flex-direction:column;align-items:center;}
+.stat-card.blue{background:linear-gradient(98deg,#0070b8 7%,#e9f4fd 120%);color:#003A6C;box-shadow:0 3px 18px #0070b810;}
+.stat-title{font-size:.97em;font-weight:600;color:#126aa8;}
+.stat-value{font-size:2.2em;font-weight:800;line-height:1.1;color:#073165;}
+.next-box{background:#fff;border-radius:16px;box-shadow:0 2px 14px #0070b810;margin-bottom:2.2rem;padding:1.7rem 2rem;}
+.next-box.empty{background:#f6fbfe;color:#226bb3;text-align:center;}
+.pending-card{background:rgba(255,255,255,.98);backdrop-filter:blur(2px);border-radius:19px;padding:2.2rem 1.8rem;margin-bottom:2.2rem;box-shadow:0 7px 38px #0731651a;}
+.approvals-table{width:100%;margin-top:.8em;background: #f8fafc;border-radius:12px;padding:1rem 0;}
+.approvals-table th,.approvals-table td{padding:.75rem .8rem;vertical-align:middle;font-size:1.09rem;}
+.btn-blue-main{background:#0567f9!important;color:#fff;font-weight:700;padding:.62rem 2.5rem;font-size:1.12rem;border-radius:15px;}
+.avail-mini{background:#e3f2fd;color:#146c43;text-align:center;border-radius:10px;padding:.67em 1em;margin-top:1.2rem;margin-bottom:1.7rem;font-size:1.09em;}
+@media(max-width:900px){.dashboard-stats{flex-direction:column;gap:1.2rem;}}
+.dropdown-menu, .dropdown-menu .dropdown-item { color: #003A6C !important; background: #fff !important; font-weight: 600; }
 </style>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-custom mb-4">
  <div class="container-fluid">
    <a class="navbar-brand" href="#">ConsultEASE</a>
-   <form class="me-auto ms-4" style="min-width:240px;max-width:320px;"><input type="search" class="form-control form-control-sm" placeholder="Search"></form>
    <ul class="navbar-nav flex-row gap-3 ms-auto align-items-center">
      <li class="nav-item"><a class="nav-link" href="dashboard.php">Dashboard</a></li>
-     <li class="nav-item"><a class="nav-link" href="availability.php">Manage Availability</a></li>
      <li class="nav-item"><a class="nav-link" href="appointments.php">Appointments</a></li>
-     <li class="nav-item"><a class="nav-link" href="feedback.php">Feedback</a></li>
      <li class="nav-item navbar-profile dropdown">
        <a class="dropdown-toggle nav-link" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-fill"></i> <?=htmlspecialchars($_SESSION['name'])?></a>
        <ul class="dropdown-menu dropdown-menu-end">
@@ -76,109 +69,40 @@ body{background:linear-gradient(120deg,#eaf2fa 0%,#d5e3fa 100%);font-family:'Seg
  </div>
 </nav>
 <div class="container mb-5">
-  <div class="row g-4 mb-1">
-    <div class="col-xl-7 col-lg-7 col-12">
-      <!-- Upcoming Sessions -->
-      <div class="glass-card mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="fs-4 fw-bold">Upcoming Sessions</div>
-          <span class="badge bg-primary text-white ms-2"><?=$stats['upcoming']?></span>
-        </div>
-        <div class="card-scroll mb-2">
-          <?php
-$nowDT = new DateTime('now', new DateTimeZone('Africa/Accra'));
-foreach($upcoming as $appt):
-?>
-          <div class="session-card">
-            <img class="avatar mb-2" src="https://ui-avatars.com/api/?name=<?=urlencode($appt['client_name'])?>&background=0070B8&color=fff" alt="">
-            <div class="session-meta"><?=htmlspecialchars($appt['client_name'])?></div>
-            <div class="status-tag mb-1">Confirmed</div>
-            <div class="session-t"><?=htmlspecialchars($appt['date'])?> <?=htmlspecialchars($appt['start_time'])?> - <?=htmlspecialchars($appt['end_time'])?></div>
-            <a href="appointments.php#appt-<?=$appt['appointment_id']?>" class="btn blue-accent btn-sm w-100 mb-2">View</a>
-            <button class="btn btn-outline-primary btn-sm w-100 mark-as-completed" data-id="<?=$appt['appointment_id']?>">Mark as Completed</button>
-          </div>
-<?php endforeach; if(!$upcoming):?><div class="session-card">No sessions scheduled.</div><?php endif;?>
-        </div>
-      </div>
-      <!-- Completed Meetings -->
-      <div class="glass-card mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="fs-4 fw-bold">Completed Meetings</div>
-          <span class="badge bg-success text-white ms-2"><?php echo count($completed); ?></span>
-        </div>
-        <div class="completed-card-scroll mb-2">
-          <?php foreach($completed as $appt): ?>
-            <div class="session-card" style="background:#f8fff8;">
-              <img class="avatar mb-2" src="https://ui-avatars.com/api/?name=<?=urlencode($appt['client_name'])?>&background=79e08c&color=222" alt="">
-              <div class="session-meta"><?=htmlspecialchars($appt['client_name'])?></div>
-              <div class="status-tag mb-1 bg-success text-white" style="background:#90deba!important;color:#155f34!important;">Completed</div>
-              <div class="session-t"><?=htmlspecialchars($appt['date'])?> <?=htmlspecialchars($appt['start_time'])?> - <?=htmlspecialchars($appt['end_time'])?></div>
-              <?php if($appt['consultant_notes']): ?>
-                <div class="small mt-1 text-success">Feedback Given</div>
-              <?php else: ?>
-                <div class="small mt-1 text-muted">No feedback yet</div>
-              <?php endif; ?>
-              <a href="feedback.php?appointment_id=<?=$appt['appointment_id']?>" class="btn btn-outline-primary btn-sm w-100 mt-2">View / Give Feedback</a>
-            </div>
-          <?php endforeach; if(!$completed):?><div class="session-card">No completed meetings yet.</div><?php endif; ?>
-        </div>
-      </div>
-      <!-- Pending Approvals -->
-      <div class="glass-card mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <div class="fs-4 fw-bold">Pending Approvals</div>
-          <span class="badge bg-warning text-dark ms-2"><?=$stats['pending']?></span>
-        </div>
-        <div class="table-responsive approvals-table">
-          <table class="table table-borderless align-middle mb-0">
-            <thead class="small text-muted"><tr><th>Name</th><th>Time</th><th></th></tr></thead>
-            <tbody>
-            <?php foreach($pending as $req): ?>
-              <tr>
-                <td><img class="avatar me-1" src="https://ui-avatars.com/api/?name=<?=urlencode($req['client_name'])?>&background=f0ad4e&color=222" alt=""> <?=htmlspecialchars($req['client_name'])?></td>
-                <td><?=htmlspecialchars($req['date'])?> <span class="text-muted small ms-1"><?=htmlspecialchars($req['start_time'])?></span></td>
-                <td>
-                  <button class="btn btn-success btn-sm accept-appt" data-id="<?=$req['appointment_id']?>">Accept</button>
-                  <button class="btn btn-danger btn-sm reject-appt" data-id="<?=$req['appointment_id']?>">Reject</button>
-                </td>
-              </tr>
-            <?php endforeach; if(!$pending): ?><tr><td colspan=3 class="text-muted">No pending requests.</td></tr><?php endif; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <div class="col-xl-5 col-lg-5 col-12">
-      <!-- Availability -->
-      <div class="glass-card mb-4" style="min-height:230px;">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div class="fs-5 fw-bold">Manage Availability</div>
-          <span class="badge bg-info text-dark ms-2"><?= $stats['avail']?></span>
-        </div>
-        <div class="avail-card mb-3">
-          <div class="row mb-2"><div class="col-6 small">Upcoming Slot:</div><div class="col-6 text-muted small">Add, edit, remove slots</div></div>
-          <div class="d-flex gap-2 flex-wrap">
-            <?php foreach($slots as $slot):?>
-            <span class="badge badge-info"><?=htmlspecialchars($slot['date'])?> <?=substr($slot['start_time'],0,5)?>-<?=substr($slot['end_time'],0,5)?></span>
-            <?php endforeach;if(!$slots):?><span class="text-muted">No available slots.</span><?php endif; ?>
-          </div>
-          <a href="availability.php" class="btn btn-outline-primary mt-3 card-btn w-100">+ Add Time Slot</a>
-        </div>
-      </div>
-      <!-- Feedback to Submit -->
-      <div class="glass-card feedback-card mb-3">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div class="fs-5 fw-bold">Feedback to Submit</div>
-          <span class="badge bg-warning text-dark ms-2"><?=$stats['feedback']?></span>
-        </div>
-        <?php foreach($feedbacks as $todo): ?>
-        <div class="mb-3 bg-white text-dark p-2 rounded">
-          <b><?=htmlspecialchars($todo['client_name'])?></b> <span class="badge bg-info">Session Ended</span><br>
-          <span class="small text-muted">On <?=htmlspecialchars($todo['date'])?> <?=htmlspecialchars($todo['start_time'])?></span>
-          <a href="feedback.php?appointment_id=<?=$todo['appointment_id']?>" class="btn btn-primary btn-sm ms-2 mt-2">Leave Feedback</a>
-        </div>
-        <?php endforeach;if(!$feedbacks): ?><div class="text-secondary small">No feedback to submit.</div><?php endif; ?>
-      </div>
+  <div class="dashboard-stats">
+    <div class="stat-card"><div class="stat-title">Sessions This Week</div><div class="stat-value"><?=$sessions_week?></div></div>
+    <div class="stat-card blue"><div class="stat-title">Completed This Month</div><div class="stat-value"><?=$sessions_month?></div></div>
+    <div class="stat-card"><div class="stat-title">See Full Appointments</div><a href="appointments.php" class="btn btn-blue-main mt-2">All Appointments</a></div>
+  </div>
+  <div class="next-box<?php if(!$next)echo' empty';?>">
+  <?php if($next): ?>
+    <div class="fs-5 mb-2 fw-bold text-secondary">Next Confirmed Session</div>
+    <div class="d-flex align-items-center gap-3 mb-2"><div><b><?=htmlspecialchars($next['client_name'])?></b></div><span class="badge bg-primary">Upcoming</span></div>
+    <div class="mb-1">Date: <b><?=htmlspecialchars($next['date'])?></b> | Time: <b><?=htmlspecialchars($next['start_time'])?> - <?=htmlspecialchars($next['end_time'])?></b></div>
+    <a href="appointments.php#appt-<?=$next['appointment_id']?>" class="btn btn-outline-primary btn-sm">Session Details</a>
+    <button class="btn btn-outline-success btn-sm mt-2 mark-as-completed" data-id="<?=$next['appointment_id']?>">Mark as Completed</button>
+  <?php else: ?>
+    <div class="text-secondary py-3">No confirmed sessions scheduled yet.</div>
+  <?php endif; ?>
+  </div>
+  <div class="pending-card">
+    <div class="fs-4 fw-bold mb-3">Pending Approvals</div>
+    <div class="table-responsive approvals-table">
+      <table class="table table-borderless align-middle mb-0">
+        <thead class="small text-muted"><tr><th>Name</th><th>Time</th><th></th></tr></thead>
+        <tbody>
+        <?php foreach($pending as $req): ?>
+          <tr>
+            <td><img class="avatar me-1" src="https://ui-avatars.com/api/?name=<?=urlencode($req['client_name'])?>&background=f0ad4e&color=222" alt=""> <?=htmlspecialchars($req['client_name'])?></td>
+            <td><?=htmlspecialchars($req['date'])?> <span class="text-muted small ms-1"><?=htmlspecialchars($req['start_time'])?></span></td>
+            <td>
+              <button class="btn btn-success btn-sm accept-appt" data-id="<?=$req['appointment_id']?>">Accept</button>
+              <button class="btn btn-danger btn-sm reject-appt" data-id="<?=$req['appointment_id']?>">Reject</button>
+            </td>
+          </tr>
+        <?php endforeach; if(!$pending): ?><tr><td colspan=3 class="text-muted">No pending requests.</td></tr><?php endif; ?>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -188,30 +112,24 @@ foreach($upcoming as $appt):
 <script>
 function refreshConsultantDashboard() {
   $.getJSON('../api/appointments.php?action=list', function(appts) {
-    // Upcoming Confirmed Sessions
-    let now = new Date();
-    let upcoming = appts.filter(a => a.status === 'confirmed' && (new Date(a.date + 'T' + a.start_time)) >= now);
-    $('.badge.bg-primary').text(upcoming.length);
-    let uphtml = '';
-    if(upcoming.length) {
-      uphtml = upcoming.map(a => `
-      <div class="session-card">
-        <img class="avatar mb-2" src="https://ui-avatars.com/api/?name=${encodeURIComponent(a.client_name)}&background=0070B8&color=fff" alt="">
-        <div class="session-meta">${a.client_name}</div>
-        <div class="status-tag mb-1">Confirmed</div>
-        <div class="session-t">${a.date} ${a.start_time} - ${a.end_time}</div>
-        <a href="appointments.php#appt-${a.appointment_id}" class="btn blue-accent btn-sm w-100 mb-2">View</a>
-        <button class="btn btn-outline-primary btn-sm w-100 mark-as-completed" data-id="${a.appointment_id}">Mark as Completed</button>
-      </div>`)
-      .join('');
+    // Next confirmed session
+    const confirmed = appts.filter(a => a.status === 'confirmed');
+    if (confirmed.length) {
+      const next = confirmed.sort((a,b)=>{
+        return new Date(a.date + 'T' + a.start_time) - new Date(b.date + 'T' + b.start_time);
+      })[0];
+      $('.next-box').removeClass('empty').html(`
+        <div class='fs-5 mb-2 fw-bold text-secondary'>Next Confirmed Session</div>
+        <div class='d-flex align-items-center gap-3 mb-2'><div><b>${next.client_name}</b></div><span class='badge bg-primary'>Upcoming</span></div>
+        <div class='mb-1'>Date: <b>${next.date}</b> | Time: <b>${next.start_time} - ${next.end_time}</b></div>
+        <a href="appointments.php#appt-${next.appointment_id}" class="btn btn-outline-primary btn-sm">Session Details</a>
+        <button class="btn btn-outline-success btn-sm mt-2 mark-as-completed" data-id="${next.appointment_id}">Mark as Completed</button>
+      `);
     } else {
-      uphtml = '<div class="session-card">No sessions scheduled.</div>';
+      $('.next-box').addClass('empty').html(`<div class="text-secondary py-3">No confirmed sessions scheduled yet.</div>`);
     }
-    $('.card-scroll').html(uphtml);
-
-    // Pending Approvals
+    // Pending approvals
     let pending = appts.filter(a => a.status === 'pending');
-    $('.badge.bg-warning').first().text(pending.length);
     let phtml = '';
     if (pending.length) {
       phtml = pending.map(req => `
@@ -232,7 +150,6 @@ function refreshConsultantDashboard() {
 }
 setInterval(refreshConsultantDashboard, 30000);
 refreshConsultantDashboard();
-// Accept/Reject AJAX
 $(document).on('click', '.accept-appt, .reject-appt', function() {
   var btn = $(this);
   if (btn.prop('disabled')) return;

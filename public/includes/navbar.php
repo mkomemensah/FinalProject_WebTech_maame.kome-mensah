@@ -18,9 +18,6 @@ secure_session_start();
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/profile.php">Profile</a></li>
         <?php elseif ($_SESSION['role'] === 'consultant'): ?>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/dashboard.php">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/availability.php">Availability</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/appointments.php">My Appointments</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/feedback.php">Feedback</a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/profile.php">Profile</a></li>
         <?php elseif ($_SESSION['role'] === 'admin'): ?>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>admin/dashboard.php">Dashboard</a></li>

@@ -36,7 +36,28 @@ class ConsultantController {
         }
         return $consultants;
     }
-    public static function updateProfile($data) {/* ... */}
+    public static function updateProfile($data) {
+        global $pdo;
+        // Find consultant row from user_id
+        $stmt = $pdo->prepare("SELECT consultant_id FROM consultants WHERE user_id = ? LIMIT 1");
+        $stmt->execute([$data['user_id']]);
+        $consultant = $stmt->fetch();
+        if (!$consultant) return ['success'=>false, 'error'=>'Consultant not found'];
+        $consultant_id = $consultant['consultant_id'];
+        // Fix: years_of_experience must be integer or NULL
+        $years = (isset($data['years_of_experience']) && is_numeric($data['years_of_experience']) && $data['years_of_experience'] !== '') ? intval($data['years_of_experience']) : null;
+        $stmt = $pdo->prepare("UPDATE consultants SET bio = ?, years_of_experience = ? WHERE consultant_id = ?");
+        $stmt->execute([
+            $data['bio'],
+            $years,
+            $consultant_id
+        ]);
+        // Fetch updated row
+        $stmt = $pdo->prepare("SELECT bio, years_of_experience FROM consultants WHERE consultant_id = ?");
+        $stmt->execute([$consultant_id]);
+        $updated = $stmt->fetch();
+        return ['success'=>true, 'bio'=>$updated['bio'], 'years_of_experience'=>$updated['years_of_experience']];
+    }
     public static function addAvailability($data) {
         global $pdo;
         $stmt = $pdo->prepare("INSERT INTO availability (consultant_id, date, start_time, end_time) VALUES (?, ?, ?, ?)");

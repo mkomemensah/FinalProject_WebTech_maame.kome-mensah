@@ -17,24 +17,49 @@ require_role('consultant');
     .badge-info { background: #e3f2fd!important; color:#1266aa!important; font-weight:700; border:1px solid #2196f3; }
     .badge-danger { background: #ffebee!important; color: #c62828!important; font-weight:700; border:1px solid #e57373; }
     .feedback-btn {margin-left:8px;margin-top:2px;}
+    #appt-list { margin-top: 2rem; }
+    .appt-card.card {
+      border-radius: 16px; 
+      border: none; 
+      background: #f0f6fb; /* light Deloitte blue */
+      transition: box-shadow 0.2s, transform 0.2s;
+      box-shadow: 0 6px 32px rgba(0,58,108,.09);
+    }
+    .appt-card:hover {
+      box-shadow: 0 12px 36px rgba(0,58,108,.15);
+      transform: translateY(-2px) scale(1.01);
+    }
+    .status-badge {
+      border-radius: 8px; 
+      font-size: 0.95rem; 
+      font-weight:600; 
+      padding: 2.5px 15px;
+      letter-spacing:0.03em;
+    }
+    .status-completed { background: #e4f7e6; color: #188248; border:1px solid #4fcc88; }
+    .status-confirmed { background: #e3f2fd; color:#1266aa; border:1px solid #2196f3; }
+    .status-pending { background: #fff9db; color:#ee9c00; border:1px solid #fbc02d; }
+    .status-cancelled { background: #ffebee; color: #c62828; border:1px solid #e57373; }
+    .btn-brand {
+      border-radius: 2rem;
+      font-weight: 600;
+      box-shadow:0 2px 8px #003A6C11;
+      transition: background .17s, color .17s, box-shadow .17s;
+      letter-spacing: 0.03em;
+    }
+    .btn-brand.feedback {  background:#fff; color: #003A6C; border:2px solid #003A6C; }
+    .btn-brand.feedback:hover { background:#003A6C; color: #fff; }
+    .btn-brand.details { background:#2196f3; color:#fff; border:none; }
+    .btn-brand.details:hover { background:#176ca0; color:#fff; }
+    .appt-card .btn + .btn { margin-left: 7px;}
+    .feedback-btn, .view-details { min-width:110px; margin:4px 3px 0 0; }
+    @media (max-width: 767px) { #appt-list .col-md-6, #appt-list .col-lg-4 { flex:0 0 100%; max-width:100%; } }
     </style>
 </head>
 <body>
 <div class="container mt-4">
-    <h2 class="mb-3" style="color:#003A6C;">Upcoming Appointments</h2>
-    <table class="table table-striped table-bordered shadow-sm">
-        <thead>
-            <tr>
-                <th>Client</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Status</th>
-                <th>Business Problem</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody id="appts-table"></tbody>
-    </table>
+    <h2 class="mb-3" style="color:#003A6C;">Appointments</h2>
+    <div id="appt-list" class="row gx-4 gy-4"></div>
 </div>
 <div id="feedback-modal" class="modal" tabindex="-1">
   <div class="modal-dialog"><div class="modal-content">
@@ -58,78 +83,59 @@ require_role('consultant');
 <div class="modal fade" id="detailsModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Session Details</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="detailsModalBody"></div></div></div></div>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
-function statusBadge(status) {
-  switch(status) {
-    case 'pending': return 'badge badge-warning';
-    case 'confirmed': return 'badge badge-success';
-    case 'completed': return 'badge badge-info';
-    case 'cancelled': return 'badge badge-danger';
-    default: return 'badge';
-  }
+function getStatusBadge(status) {
+  let map = {
+    'completed': 'status-badge status-completed',
+    'confirmed': 'status-badge status-confirmed',
+    'pending': 'status-badge status-pending',
+    'cancelled': 'status-badge status-cancelled',
+  };
+  return map[status]||'status-badge';
 }
 function fetchAppointments() {
   $.getJSON('../api/appointments.php?action=list', function(appts) {
     let html = '';
-    let now = new Date();
-    appts.forEach(function(a) {
-      let badge = statusBadge(a.status);
-      let btns = '';
-      // Accept/reject for pending
-      if (a.status === 'pending') {
-        btns = `<button class='btn btn-outline-success btn-sm me-2 accept-appt' data-id='${a.appointment_id}'>Accept</button>`+
-               `<button class='btn btn-outline-danger btn-sm reject-appt' data-id='${a.appointment_id}'>Reject</button>`;
-      }
-      // Manual mark as complete for confirmed that are in the past
-      if (a.status === 'confirmed') {
-        let endDateTime = new Date(a.date+'T'+a.end_time);
-        if (endDateTime < now) {
-          btns += `<button class='btn btn-outline-primary btn-sm ms-2 mark-completed' data-id='${a.appointment_id}'>Mark as Completed</button>`;
+    if (!appts.length) {
+      html = `<div class='col-12'><div class='text-center py-5'><img src='https://cdn-icons-png.flaticon.com/512/4076/4076549.png' alt='No Appointments' width='80' class='mb-2'/><h5 class='text-secondary'>No appointments found</h5></div></div>`;
+    } else {
+      appts.forEach(function(a) {
+        let badgeClass = getStatusBadge(a.status);
+        let feedbackBtn = '';
+        if(a.status === 'completed') {
+          feedbackBtn = `<button class='btn btn-brand feedback btn-sm feedback-btn me-2'><i class="bi bi-chat-left-text"></i> Give Feedback</button>`;
         }
-      }
-      // Feedback UI for completed appointments
-      let feedbackUI = '';
-      if (a.status === 'completed') {
-        feedbackUI = '<div class="mt-2">';
-        if (a.consultant_notes) {
-          feedbackUI += `<span class='text-primary small'>Your Feedback:</span><div class='border rounded px-2 py-1 mb-1 text-secondary small'>${a.consultant_notes}</div>`;
-        }
-        if (a.client_notes) {
-          feedbackUI += `<span class='text-success small'>Client Feedback:</span><div class='border rounded px-2 py-1 text-secondary small'>${a.client_notes}</div>`;
-        }
-        if (!a.consultant_notes) {
-          feedbackUI += `<button class='btn btn-sm btn-outline-primary feedback-btn' data-appt='${a.appointment_id}'>Leave Feedback</button>`;
-        } else {
-          feedbackUI += `<button class='btn btn-sm btn-outline-secondary feedback-btn' data-appt='${a.appointment_id}'>Edit Feedback</button>`;
-        }
-        feedbackUI += '</div>';
-      }
-      let problem = a.business_problem || '-';
-      let truncated = problem.length > 50 ? problem.substr(0, 50) + '...' : problem;
-      let viewBtn = problem.length > 50 ? `<button class='btn btn-info btn-sm ms-1 view-problem' data-problem="${$('<div>').text(problem).html()}">View</button>` : '';
-      let problemCell = truncated + viewBtn;
-      let detailsBtn = `<button class='btn btn-secondary btn-sm ms-2 view-details' data-client="${a.client_name}" data-email="${a.email||'-'}" data-date="${a.date}" data-time="${a.start_time} - ${a.end_time}" data-problem="${$('<div>').text(problem).html()}">Details</button>`;
-      let markBtn = `<button class='btn btn-outline-primary btn-sm mark-completed' data-id='${a.appointment_id}'>Mark as Completed</button>`;
-      html += `<tr><td>${a.client_name}</td><td>${a.date}</td><td>${a.start_time} - ${a.end_time}</td><td><span class='${badge}'>${a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span></td><td>${problemCell}</td><td>${markBtn} ${detailsBtn}</td></tr>`;
-    });
-    $('#appts-table').html(html);
-    // Feedback modal logic (existing)
-    $('.feedback-btn').off('click').on('click', function(){
-      const apptId = $(this).data('appt');
-      $.getJSON('../api/appointments.php?action=list', function(appts2) {
-        const a = appts2.find(a=>a.appointment_id==apptId);
-        $('#fb-appointment-id').val(apptId);
+        let detailsBtn = `<button class='btn btn-brand details btn-sm view-details'><i class="bi bi-info-circle"></i> Details</button>`;
+        html += `<div class='col-md-6 col-lg-4'><div class='appt-card card h-100 shadow-sm p-3'>
+          <div class='d-flex align-items-center mb-3'>
+            <div class='rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm' style='width:44px;height:44px;font-weight:bold;font-size:1.2rem;'>${a.client_name?a.client_name.charAt(0):'?'}</div>
+            <div class='ms-3'><div class='fw-bold mb-1'>${a.client_name||'-'}</div><div class='small text-secondary'>${a.email||''}</div></div>
+          </div>
+          <div class='mb-2'><b>Date:</b> ${a.date}&nbsp;&nbsp;<b>Time:</b> ${a.start_time} - ${a.end_time}</div>
+          <div class='mb-2'><span class='${badgeClass}'>${a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span></div>
+          <div>${feedbackBtn}${detailsBtn}</div>
+        </div></div>`;
+      });
+    }
+    $('#appt-list').html(html);
+    // Feedback and Details event handlers w/ icon buttons
+    $('#appt-list .feedback-btn').off('click').on('click', function(){
+      // ...feedback logic (as before, using the appointment id)...
+      const idx = $(this).closest('.appt-card').parent().index();
+      $.getJSON('../api/appointments.php?action=list', (appts2)=>{
+        const a = appts2[idx];
+        $('#fb-appointment-id').val(a.appointment_id);
         $('#fb-consultant-notes').val(a && a.consultant_notes?a.consultant_notes:'');
         $('#fb-success').hide();
         $('#feedback-modal').modal('show');
       });
     });
-    // Manual mark as completed handler
-    $('.mark-completed').off('click').on('click', function(){
-      let id = $(this).data('id');
-      $(this).prop('disabled', true);
-      $.post('../api/appointments.php?action=mark_completed', { appointment_id: id }, function(resp) {
-        fetchAppointments();
-      }, 'json');
+    $('#appt-list .view-details').off('click').on('click', function(){
+      const idx = $(this).closest('.appt-card').parent().index();
+      $.getJSON('../api/appointments.php?action=list', (appts2)=>{
+        const a = appts2[idx];
+        $('#detailsModalBody').html(`<b>Client:</b> ${a.client_name}<br><b>Email:</b> ${a.email||'-'}<br><b>Date:</b> ${a.date}<br><b>Time:</b> ${a.start_time} - ${a.end_time}<br><b>Business Problem:</b><br>${a.business_problem||'-'}`);
+        $('#detailsModal').modal('show');
+      });
     });
   });
 }
@@ -139,23 +145,11 @@ $(document).ready(function() {
   if (typeof bootstrap==='undefined'){
     $.getScript('https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js');
   }
-  $('#appts-table').on('click', '.accept-appt', function() {
-    let id = $(this).data('id');
-    $.post('../api/appointments.php?action=accept', { appointment_id: id }, function(resp) {
-      fetchAppointments();
-    }, 'json');
-  });
-  $('#appts-table').on('click', '.reject-appt', function() {
-    let id = $(this).data('id');
-    $.post('../api/appointments.php?action=reject', { appointment_id: id }, function(resp) {
-      fetchAppointments();
-    }, 'json');
-  });
-  $('#appts-table').on('click', '.view-problem', function(){
+  $('#appt-list').on('click', '.view-problem', function(){
     $('#problemModalBody').text($(this).data('problem'));
     $('#problemModal').modal('show');
   });
-  $('#appts-table').on('click', '.view-details', function(){
+  $('#appt-list').on('click', '.view-details', function(){
     const c = $(this).data('client'),
           e = $(this).data('email'),
           d = $(this).data('date'),

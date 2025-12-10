@@ -202,14 +202,12 @@ class AppointmentController {
 
     public static function markCompleted($appointment_id, $consultant_id) {
         global $pdo;
-        // Only allow if it is confirmed and end_time is in past
+        // Only allow if it is confirmed for this consultant
         $stmt = $pdo->prepare("SELECT a.*, av.date, av.end_time FROM appointments a JOIN availability av ON a.availability_id = av.availability_id WHERE a.appointment_id = ? AND a.consultant_id = ? AND a.status = 'confirmed'");
         $stmt->execute([$appointment_id, $consultant_id]);
         $appt = $stmt->fetch();
         if (!$appt) return ['success'=>false, 'error'=>'Appointment not found or not eligible.'];
-        $now = date('Y-m-d H:i:s');
-        $endDateTime = $appt['date'].' '.$appt['end_time'];
-        if (strtotime($endDateTime) > strtotime($now)) return ['success'=>false, 'error'=>'Too early to complete.'];
+        // (REMOVED time check) -- allow marking as completed at any time
         $pdo->prepare("UPDATE appointments SET status = 'completed' WHERE appointment_id = ?")->execute([$appointment_id]);
         return ['success'=>true];
     }
