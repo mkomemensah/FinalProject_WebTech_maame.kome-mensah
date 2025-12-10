@@ -55,6 +55,7 @@ $profilePic = 'https://ui-avatars.com/api/?name=' . urlencode($clientName) . '&b
     <a class="navbar-brand me-5" style="font-size:1.6rem;">ConsultEASE</a>
     <ul class="navbar-nav flex-row gap-4 ms-auto align-items-center" style="gap:2.2rem!important">
       <li class="nav-item"><a class="nav-link" href="dashboard.php">Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link" href="messages.php">Messages</a></li>
       <li class="nav-item"><a class="nav-link" href="consultants.php">Find a Consultant</a></li>
       <li class="nav-item"><a class="nav-link" href="appointments.php">My Appointments</a></li>
       <li class="nav-item"><a class="nav-link" href="faq.php">Support</a></li>
