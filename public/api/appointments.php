@@ -10,14 +10,16 @@ switch ($action) {
     case 'book':
         require_role('client');
         $data = [
-            'consultant_id' => $_POST['consultant_id'],
-            'date' => $_POST['date'],
-            'time' => $_POST['time'],
+            'consultant_id' => $_POST['consultant_id'] ?? null,
+            'availability_id' => $_POST['availability_id'] ?? null,
             'client_id' => $_SESSION['user_id'],
+            'date' => $_POST['date'] ?? null,
+            'start_time' => $_POST['start_time'] ?? null,
+            'end_time' => $_POST['end_time'] ?? null
         ];
         $result = AppointmentController::book($data);
         header('Content-Type: application/json');
-        echo json_encode($result); // ['success'=>bool, 'errors'=>[]]
+        echo json_encode($result);
         break;
 
     case 'list':
@@ -25,8 +27,20 @@ switch ($action) {
         if ($_SESSION['role'] === 'client') {
             $appointments = AppointmentController::getClientAppointments($_SESSION['user_id']);
         } elseif ($_SESSION['role'] === 'consultant') {
-            $appointments = AppointmentController::getConsultantAppointments($_SESSION['user_id']);
+            // Auto-complete sessions for this consultant
+            global $pdo;
+            $stmt = $pdo->prepare("SELECT consultant_id FROM consultants WHERE user_id = ?");
+            $stmt->execute([$_SESSION['user_id']]);
+            $row = $stmt->fetch();
+            $consultant_id = $row ? $row['consultant_id'] : null;
+            if ($consultant_id) {
+                AppointmentController::autoCompleteSessions($consultant_id);
+                $appointments = AppointmentController::getConsultantAppointments($consultant_id);
+            } else {
+                $appointments = [];
+            }
         } elseif ($_SESSION['role'] === 'admin') {
+            AppointmentController::autoCompleteSessions(); // global auto-mark
             $appointments = AppointmentController::getAllAppointments();
         } else {
             $appointments = [];
@@ -34,5 +48,46 @@ switch ($action) {
         header('Content-Type: application/json');
         echo json_encode($appointments);
         break;
-    // add cancel/confirm endpoints as needed
+    // Consultant accepting an appointment
+    case 'accept':
+        require_role('consultant');
+        $appointment_id = $_POST['appointment_id'];
+        global $pdo;
+        $stmt = $pdo->prepare("SELECT consultant_id FROM consultants WHERE user_id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $row = $stmt->fetch();
+        $consultant_id = $row ? $row['consultant_id'] : null;
+        $result = $consultant_id
+            ? AppointmentController::acceptAppointment($appointment_id, $consultant_id)
+            : ['success'=>false,'error'=>'Consultant not found'];
+        header('Content-Type: application/json');
+        echo json_encode($result);
+        break;
+    // Consultant rejecting/cancelling an appointment
+    case 'reject':
+        require_role('consultant');
+        $appointment_id = $_POST['appointment_id'];
+        $stmt = $pdo->prepare("SELECT consultant_id FROM consultants WHERE user_id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $row = $stmt->fetch();
+        $consultant_id = $row ? $row['consultant_id'] : null;
+        $result = $consultant_id
+            ? AppointmentController::rejectAppointment($appointment_id, $consultant_id)
+            : ['success'=>false,'error'=>'Consultant not found'];
+        header('Content-Type: application/json');
+        echo json_encode($result);
+        break;
+    case 'mark_completed':
+        require_role('consultant');
+        $appointment_id = $_POST['appointment_id'];
+        $stmt = $pdo->prepare("SELECT consultant_id FROM consultants WHERE user_id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $row = $stmt->fetch();
+        $consultant_id = $row ? $row['consultant_id'] : null;
+        $result = $consultant_id
+            ? AppointmentController::markCompleted($appointment_id, $consultant_id)
+            : ['success'=>false,'error'=>'Consultant not found'];
+        header('Content-Type: application/json');
+        echo json_encode($result);
+        break;
 }

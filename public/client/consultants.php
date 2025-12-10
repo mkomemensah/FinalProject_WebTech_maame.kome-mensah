@@ -2,14 +2,6 @@
 require_once __DIR__ . '/../../app/middleware/auth_middleware.php';
 require_once __DIR__ . '/../../app/middleware/role_middleware.php';
 require_role('client');
-$consultants = [
-  [ 'name' => 'Dr. Anya Sharma', 'pic' => 'https://randomuser.me/api/portraits/women/68.jpg', 'tags' => ['AI','Innovation'], 'bio' => '10+ years at leading tech firms, authored 3 patents.', 'exp'=>'PhD, AI & Innovation' ],
-  [ 'name' => 'Kwame Yeboah', 'pic' => 'https://randomuser.me/api/portraits/men/74.jpg', 'tags' => ['Strategy','Retail'], 'bio' => 'Retail ops, business strategy, ex-Accenture.', 'exp'=>'MBA, Strategy' ],
-  [ 'name' => 'Ama Boateng', 'pic' => 'https://randomuser.me/api/portraits/women/85.jpg', 'tags'=>['Marketing','Product Dev'],'bio'=>'Top growth campaigns, SaaS launches, mentor.','exp'=>'MSc Marketing'],
-  [ 'name' => 'Jason Kraal', 'pic' => 'https://randomuser.me/api/portraits/men/21.jpg', 'tags'=>['Finance','Tech'],'bio'=>'FP&A, fintech startups, author of FinTech Weekly.','exp'=>'CPA, FinTech'],
-  [ 'name' => 'Maya Hassan', 'pic' => 'https://randomuser.me/api/portraits/women/43.jpg', 'tags'=>['Leadership'],'bio'=>'Leadership coach, global corp L&D director.','exp'=>'ICF Certified'],
-  [ 'name' => 'David Chen', 'pic' => 'https://randomuser.me/api/portraits/men/9.jpg', 'tags'=>['Product','Tech'],'bio'=>'Product manager @ scale-ups in Europe and Asia.','exp'=>'BSc, Product Mgt'],
-];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,22 +31,24 @@ $consultants = [
   </div>
   <div id="consultantList" class="consultant-card-list"></div>
 </div>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
-const consultants = <?= json_encode($consultants) ?>;
+let consultants = [];
 let activeTag = 'all';
 function renderConsultantCards() {
   const kw = document.getElementById('consultantSearch').value.toLowerCase();
   const list = document.getElementById('consultantList');
   list.innerHTML = '';
   let shown = 0;
-  consultants.forEach((c,i)=>{
-    let matches = (activeTag==='all'||c.tags.includes(activeTag));
+  consultants.forEach((c)=>{
+    let matches = true; // DISABLE FILTERING FOR DEBUGGING
     if(matches && kw) {
-      matches = c.name.toLowerCase().includes(kw);}
+      matches = c.name.toLowerCase().includes(kw);
+    }
     if(matches){
       let el = document.createElement('div');
       el.className = 'consultant-card';
-      el.innerHTML = `<div class='d-flex align-items-center mb-2'><img src='${c.pic}' class='consultant-profile-img'><div><b>${c.name}</b><br><span class='text-muted small'>${c.exp}</span></div></div><div class='mb-1 small'>${c.bio}</div><div class='mb-2'>${c.tags.map(t=>`<span class='consultant-tag'>${t}</span>`).join('')}</div><a href='book.php?consultant_id=${i+1}' class='btn btn-primary btn-sm w-100 mt-1'>Book</a>`;
+      el.innerHTML = `<div class='d-flex align-items-center mb-2'><img src='${c.pic}' class='consultant-profile-img'><div><b>${c.name}</b><br><span class='text-muted small'>${c.expertise || ''}</span></div></div><div class='mb-1 small'>${c.bio||''}</div><a href='book.php?consultant_id=${c.consultant_id}' class='btn btn-primary btn-sm w-100 mt-1'>Book</a>`;
       list.appendChild(el); shown++;
     }
   });
@@ -68,7 +62,11 @@ document.querySelectorAll('.filter-btn').forEach(btn=>{
     renderConsultantCards();
   }
 });
-renderConsultantCards();
+// INITIAL LOAD
+$.getJSON('../api/consultants.php?action=list', function(data){
+  consultants = data;
+  renderConsultantCards();
+});
 </script>
 </body>
 </html>

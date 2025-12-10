@@ -101,8 +101,8 @@ body{background:linear-gradient(120deg,#eaf2fa 0%,#d5e3fa 100%);font-family:'Seg
               <td><img class="avatar me-1" src="https://ui-avatars.com/api/?name=<?=urlencode($req['client_name'])?>&background=f0ad4e&color=222" alt=""> <?=htmlspecialchars($req['client_name'])?></td>
               <td><?=htmlspecialchars($req['date'])?> <span class="text-muted small ms-1"><?=htmlspecialchars($req['start_time'])?></span></td>
               <td>
-                <a href="appointments.php?action=approve&id=<?=$req['appointment_id']?>" class="btn btn-success btn-sm card-btn">Approve</a>
-                <a href="appointments.php?action=reject&id=<?=$req['appointment_id']?>" class="btn btn-danger btn-sm card-btn">Reject</a>
+                <button class="btn btn-success btn-sm accept-appt" data-id="<?=$req['appointment_id']?>">Accept</button>
+                <button class="btn btn-danger btn-sm reject-appt" data-id="<?=$req['appointment_id']?>">Reject</button>
               </td>
             </tr>
           <?php endforeach;if(!$pending): ?><tr><td colspan=3 class="text-muted">No pending requests.</td></tr><?php endif; ?>
@@ -140,6 +140,81 @@ body{background:linear-gradient(120deg,#eaf2fa 0%,#d5e3fa 100%);font-family:'Seg
     </div>
   </div>
 </div>
+<div id="toast-wrap" style="position:fixed;right:23px;bottom:32px;z-index:9999;min-width:220px;"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+function refreshConsultantDashboard() {
+  $.getJSON('../api/appointments.php?action=list', function(appts) {
+    // Upcoming Confirmed Sessions
+    let now = new Date();
+    let upcoming = appts.filter(a => a.status === 'confirmed' && (new Date(a.date + 'T' + a.start_time)) >= now);
+    $('.badge.bg-primary').text(upcoming.length);
+    let uphtml = '';
+    if(upcoming.length) {
+      uphtml = upcoming.map(a => `
+      <div class="session-card">
+        <img class="avatar mb-2" src="https://ui-avatars.com/api/?name=${encodeURIComponent(a.client_name)}&background=0070B8&color=fff" alt="">
+        <div class="session-meta">${a.client_name}</div>
+        <div class="status-tag mb-1">Confirmed</div>
+        <div class="session-t">${a.date} ${a.start_time} - ${a.end_time}</div>
+        <a href="appointments.php#appt-${a.appointment_id}" class="btn blue-accent btn-sm w-100">View</a>
+      </div>`)
+      .join('');
+    } else {
+      uphtml = '<div class="session-card">No sessions scheduled.</div>';
+    }
+    $('.card-scroll').html(uphtml);
+
+    // Pending Approvals
+    let pending = appts.filter(a => a.status === 'pending');
+    $('.badge.bg-warning').first().text(pending.length);
+    let phtml = '';
+    if (pending.length) {
+      phtml = pending.map(req => `
+        <tr>
+          <td><img class="avatar me-1" src="https://ui-avatars.com/api/?name=${encodeURIComponent(req.client_name)}&background=f0ad4e&color=222"> ${req.client_name}</td>
+          <td>${req.date} <span class="text-muted small ms-1">${req.start_time}</span></td>
+          <td>
+            <button class="btn btn-success btn-sm accept-appt" data-id="${req.appointment_id}">Accept</button>
+            <button class="btn btn-danger btn-sm reject-appt" data-id="${req.appointment_id}">Reject</button>
+          </td>
+        </tr>
+      `).join('');
+    } else {
+      phtml = '<tr><td colspan=3 class="text-muted">No pending requests.</td></tr>';
+    }
+    $('.approvals-table tbody').html(phtml);
+  });
+}
+setInterval(refreshConsultantDashboard, 30000);
+refreshConsultantDashboard();
+// Accept/Reject AJAX
+$(document).on('click', '.accept-appt, .reject-appt', function() {
+  var btn = $(this);
+  if (btn.prop('disabled')) return;
+  btn.prop('disabled', true);
+  var id = btn.data('id');
+  var isAccept = btn.hasClass('accept-appt');
+  var api = isAccept ? 'accept' : 'reject';
+  $.post(`../api/appointments.php?action=${api}`, { appointment_id: id }, function(resp) {
+    if (resp.success) {
+      showToast(isAccept ? 'Appointment accepted!' : 'Appointment rejected.', isAccept);
+    } else {
+      showToast(resp.error||'Error: Could not update appointment.', false);
+    }
+    refreshConsultantDashboard();
+  }, 'json').fail(function() {
+    showToast('Server error: please try again or refresh.', false);
+    refreshConsultantDashboard();
+  });
+});
+function showToast(msg, positive) {
+  var color = (positive === false) ? 'alert-danger' : (positive === true ? 'alert-success' : 'alert-secondary');
+  var toast = $('<div class="alert '+color+' py-2 px-3 mb-2 shadow"><b>'+msg+'</b></div>');
+  $('#toast-wrap').append(toast);
+  setTimeout(function(){ toast.fadeOut(350, function(){ toast.remove(); }); },1800);
+}
+</script>
 </body>
 </html>

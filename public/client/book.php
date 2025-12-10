@@ -2,28 +2,6 @@
 require_once __DIR__ . '/../../app/middleware/auth_middleware.php';
 require_once __DIR__ . '/../../app/middleware/role_middleware.php';
 require_role('client');
-$consultants = [
-  [ 'name' => 'Dr. Anya Sharma', 'pic' => 'https://randomuser.me/api/portraits/women/68.jpg' ],
-  [ 'name' => 'Kwame Yeboah', 'pic' => 'https://randomuser.me/api/portraits/men/74.jpg' ],
-  [ 'name' => 'Ama Boateng', 'pic' => 'https://randomuser.me/api/portraits/women/85.jpg' ],
-  [ 'name' => 'Jason Kraal', 'pic' => 'https://randomuser.me/api/portraits/men/21.jpg' ],
-  [ 'name' => 'Maya Hassan', 'pic' => 'https://randomuser.me/api/portraits/women/43.jpg' ],
-  [ 'name' => 'David Chen', 'pic' => 'https://randomuser.me/api/portraits/men/9.jpg' ],
-];
-$cid = isset($_GET['consultant_id']) ? intval($_GET['consultant_id'])-1 : 0;
-$selected = $consultants[$cid] ?? $consultants[0];
-if ($_SERVER['REQUEST_METHOD']==='POST') {
-  session_start();
-  $consultid = intval($_POST['consultant_id']);
-  $date = $_POST['date'];
-  $time = $_POST['time'];
-  $sessKey = 'booked_'.$consultid.'_'.$date.'_'.$time;
-  if (isset($_SESSION[$sessKey])) $error = 'This time is already booked!';
-  else {
-    $_SESSION[$sessKey] = true;
-    $success = true;
-  }
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -36,32 +14,129 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 <body style="background: url('https://img.freepik.com/premium-photo/reading-books-online-open-book-laptop-blue-background-3d-render_407474-4746.jpg') center center / cover no-repeat fixed; position:relative;">
 <div style="position:fixed;inset:0;z-index:1;background:rgba(255,255,255,0.72);"></div>
 <div class="container py-4" style="max-width:540px; position:relative; z-index:2;">
-  <h2 class="mb-3" style="color:#003A6C;">Book with <?= htmlspecialchars($selected['name']) ?></h2>
-<?php if(!empty($success)): ?>
-  <div class="alert alert-success">Booking request sent to consultant for confirmation!</div>
-  <a href="dashboard.php" class="btn btn-primary">Back to Dashboard</a>
-<?php else: ?>
-  <?php if(!empty($error)): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
-  <form method="post" class="card p-4 shadow-sm" novalidate>
-    <input type="hidden" name="consultant_id" value="<?= $cid ?>">
-    <div class="mb-3 text-center"><img src="<?= $selected['pic'] ?>" style="width:64px;height:64px;border-radius:50%;"><br>
-      <b><?= htmlspecialchars($selected['name']) ?></b>
-    </div>
-    <div class="mb-3">
+<h2 class="mb-3" style="color:#003A6C;">Book a Consultation</h2>
+<div id="msg"></div>
+<form id="booking-form" class="card p-4 shadow-sm" autocomplete="off">
+  <div class="mb-3">
+    <label class="form-label">Consultant *</label>
+    <select id="consultant-select" class="form-select" required name="consultant_id"></select>
+  </div>
+  <div id="slot-row" class="mb-3" style="display:none">
+    <label class="form-label">Available Slots *</label>
+    <select id="slot-select" class="form-select" name="availability_id"></select>
+  </div>
+  <div id="manual-row" class="mb-3 row g-2 align-items-center" style="display:none">
+    <div class="col-6">
       <label class="form-label">Date *</label>
-      <input name="date" type="date" required class="form-control" min="<?= date('Y-m-d') ?>">
+      <input name="date" id="date-input" type="date" class="form-control">
     </div>
-    <div class="mb-3">
-      <label class="form-label">Time *</label>
-      <input name="time" type="time" required class="form-control">
+    <div class="col-3">
+      <label class="form-label">Start *</label>
+      <input name="start_time" id="start-time-input" type="time" class="form-control">
     </div>
-    <div class="mb-3">
-      <label class="form-label">Meeting Notes (optional)</label>
-      <textarea name="notes" class="form-control" rows="2" maxlength="255"></textarea>
+    <div class="col-3">
+      <label class="form-label">End *</label>
+      <input name="end_time" id="end-time-input" type="time" class="form-control">
     </div>
-    <button type="submit" class="btn btn-primary w-100">Send Booking Request</button>
-  </form>
-<?php endif; ?>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Meeting Notes (optional)</label>
+    <textarea name="notes" class="form-control" rows="2" maxlength="255"></textarea>
+  </div>
+  <button type="submit" class="btn btn-primary w-100">Send Booking Request</button>
+</form>
+<a href="dashboard.php" class="btn btn-outline-primary mt-3">Back to Dashboard</a>
 </div>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let consultants = [];
+$('#consultant-select').html('<option>Loading consultants...</option>');
+
+// Load consultants
+$.getJSON('../api/consultants.php?action=list', function(list){
+  consultants = list;
+  if (!consultants.length) {
+    $('#consultant-select').html('<option>No consultants available</option>');
+    return;
+  }
+  $('#consultant-select').html('<option value="">Select consultant...</option>' + 
+    consultants.map(c=>`<option value="${c.consultant_id}">${c.name} (${c.expertise||''})</option>`).join(''));
+});
+
+// Show correct booking method depending on slots
+$('#consultant-select').on('change', function() {
+  const cid = $(this).val();
+  $('#msg').html('');
+  $('#slot-row').hide();
+  $('#manual-row').hide();
+  if (!cid) return;
+  $.getJSON('../api/availability.php?action=list&consultant_id='+cid, function(slots){
+    if (slots.length) {
+      $('#slot-row').show();
+      $('#slot-select').prop('required',true).html(
+        '<option value="">Select slot...</option>' +
+        slots.map(s=>
+          `<option value="${s.availability_id}">${s.date} (${s.start_time} - ${s.end_time})</option>`).join('')
+      );
+      $('#manual-row input').prop('required',false);
+      $('#manual-row').hide();
+    } else {
+      $('#manual-row').show();
+      $('#manual-row input').prop('required',true);
+      $('#slot-row').hide();
+      $('#slot-select').prop('required',false);
+    }
+  });
+});
+
+function setDateMinToday() {
+  var today = (new Date()).toISOString().split('T')[0];
+  $('#date-input').attr('min', today);
+}
+setDateMinToday();
+$('#date-input').on('focus', setDateMinToday);
+
+// Validate and submit
+$('#booking-form').off('submit').on('submit', function(e){
+  e.preventDefault();
+  const date = $('#date-input').val();
+  const start = $('#start-time-input').val();
+  const end = $('#end-time-input').val();
+  // Accurate Ghana (GMT) time regardless of user's timezone
+  const accraNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Accra' }));
+  const todayGhana = accraNow.toISOString().split('T')[0];
+  if (!date || !start || !end) {
+    $('#msg').html('<div class="alert alert-danger">Missing required fields.</div>');
+    return;
+  }
+  if (date < todayGhana) {
+    $('#msg').html('<div class="alert alert-danger">Cannot book a date before today.</div>');
+    return;
+  }
+  if (date === todayGhana) {
+    // Use Date objects for comparison
+    const userDateTime = new Date(`${date}T${start}`);
+    if (userDateTime <= accraNow) {
+      $('#msg').html('<div class="alert alert-danger">Choose a start time later than now (Ghana/GMT).</div>');
+      return;
+    }
+  }
+  if (end <= start) {
+    $('#msg').html('<div class="alert alert-danger">End time must be after start time.</div>');
+    return;
+  }
+  const data = $(this).serialize();
+  $.post('../api/appointments.php?action=book', data, function(resp){
+    if(resp.success) {
+      $('#msg').html('<div class="alert alert-success">Booking request sent to consultant for confirmation!</div>');
+      $('#booking-form')[0].reset();
+      $('#slot-row, #manual-row').hide();
+    } else {
+      $('#msg').html('<div class="alert alert-danger">'+(resp.error||'Booking failed')+'</div>');
+    }
+  },'json');
+});
+</script>
 </body>
 </html>

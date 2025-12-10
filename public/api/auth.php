@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../app/controllers/AuthController.php';
+require_once __DIR__ . '/../../app/controllers/ClientController.php'; // Added for update_profile
 
 $action = $_GET['action'] ?? '';
 session_start();
@@ -43,6 +44,30 @@ switch ($action) {
     case 'logout':
         AuthController::logout();
         header('Location: ' . BASE_URL . 'login.php?logout=1');
+        exit;
+    case 'update_profile':
+        require_role('client');
+        $client_id = $_SESSION['user_id'];
+        $name = $_POST['name'] ?? '';
+        $phone = $_POST['phone'] ?? '';
+        if (!$name) {
+            echo json_encode(['success'=>false, 'error'=>'Name is required.']);
+            exit;
+        }
+        $result = ClientController::updateProfile($client_id, $name, $phone);
+        if ($result) {
+            // Get updated/sanitized name for feedback
+            global $pdo;
+            $stmt = $pdo->prepare("SELECT name FROM users WHERE user_id = ?");
+            $stmt->execute([$client_id]);
+            $row = $stmt->fetch();
+            $updatedName = $row ? $row['name'] : $name;
+            $_SESSION['name'] = $updatedName;
+            $_SESSION['phone'] = $phone;
+            echo json_encode(['success'=>true, 'name'=>$updatedName]);
+        } else {
+            echo json_encode(['success'=>false, 'error'=>'Update failed.']);
+        }
         exit;
     // Optionally: profile update...
 }

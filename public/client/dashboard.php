@@ -4,46 +4,6 @@ require_once __DIR__ . '/../../app/middleware/role_middleware.php';
 require_role('client');
 $clientName = $_SESSION['name'] ?? 'Client';
 $profilePic = 'https://ui-avatars.com/api/?name=' . urlencode($clientName) . '&background=003A6C&color=fff&size=64';
-// Static consultant dataset for demo
-$consultants = [
-  [
-    'name' => 'Dr. Anya Sharma',
-    'pic' => 'https://randomuser.me/api/portraits/women/68.jpg',
-    'tags' => ['AI', 'Innovation'],
-    'bio' => '10+ years at leading tech firms, authored 3 patents.','slots'=>[1,2,10,'11A','Fri 9pm'],
-    'exp' => 'PhD, AI & Innovation'
-  ],
-  [
-    'name' => 'Kwame Yeboah',
-    'pic' => 'https://randomuser.me/api/portraits/men/74.jpg',
-    'tags' => ['Strategy','Retail'],
-    'bio' => 'Retail operations, business strategy, ex-Accenture.', 'slots'=>[3,5,7,12],'exp'=>'MBA, Strategy'
-  ],
-  [
-    'name' => 'Ama Boateng',
-    'pic' => 'https://randomuser.me/api/portraits/women/85.jpg',
-    'tags' => ['Marketing','Product Dev'],
-    'bio' => 'Top growth campaigns, SaaS launches, mentor.','slots'=>[4,6,8,10,12],'exp'=>'MSc Marketing'
-  ],
-  [
-    'name' => 'Jason Kraal',
-    'pic' => 'https://randomuser.me/api/portraits/men/21.jpg',
-    'tags' => ['Finance','Tech'],
-    'bio' => 'FP&A, fintech startups, author of FinTech Weekly.','slots'=>[2,3,8,11],'exp'=>'CPA, FinTech'
-  ],
-  [
-    'name' => 'Maya Hassan',
-    'pic' => 'https://randomuser.me/api/portraits/women/43.jpg',
-    'tags' => ['Leadership'],
-    'bio' => 'Leadership coach, global corp L&D director.','slots'=>[7,8,9],'exp'=>'ICF Certified'
-  ],
-  [
-    'name' => 'David Chen',
-    'pic' => 'https://randomuser.me/api/portraits/men/9.jpg',
-    'tags' => ['Product','Tech'],
-    'bio' => 'Product manager @ scale-ups in Europe and Asia.','slots'=>[1,3,6,11],'exp'=>'BSc, Product Mgt'
-  ]
-];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -100,7 +60,7 @@ $consultants = [
       <li class="nav-item"><a class="nav-link" href="faq.php">Support</a></li>
       <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown">
-          <img src="<?= $profilePic ?>" class="profile-mini me-2"> <span class="fw-bold me-1"><?= htmlspecialchars($clientName) ?></span> <span class="ms-1"></span>
+          <img src="<?= $profilePic ?>" class="profile-mini me-2"> <span class="fw-bold me-1 clientNameDisplay"><?= htmlspecialchars($clientName) ?></span> <span class="ms-1"></span>
         </a>
         <ul class="dropdown-menu dropdown-menu-end">
           <li><a class="dropdown-item" href="profile.php">My Profile</a></li>
@@ -113,68 +73,44 @@ $consultants = [
     </ul>
   </div>
 </nav>
-<div class="container">
-  <div class="main-panel">
-    <div class="d-lg-flex dashboard-split gap-5">
-      <!-- CONSULTANT LIST -->
-      <div class="flex-fill" style="min-width:320px;">
-        <div class="mb-2"><h4 class="mb-1">Find a Consultant</h4></div>
-        <div class="mb-2 d-flex gap-2 align-items-center">
-          <button class="filter-pill active" onclick="filterConsultants('all')">All</button>
-          <button class="filter-pill" onclick="filterConsultants('Marketing')">Marketing</button>
-          <button class="filter-pill" onclick="filterConsultants('Product Dev')">Product Dev</button>
-          <button class="filter-pill" onclick="filterConsultants('Leadership')">Leadership</button>
-          <input class="form-control ms-2" id="consultantSearch" style="max-width:170px;" type="search" placeholder="Search..." oninput="searchConsultants()">
-        </div>
-        <div class="consultant-list-scroll" id="consultantList">
-          <!-- Consultant cards (JS populates or fallback PHP loop below) -->
-        </div>
-      </div>
-      <!-- DETAIL PANEL -->
-      <div class="flex-fill" style="max-width:410px;min-width:320px;">
-        <div class="card detail-card shadow" id="consultantDetailCard">
-          <!-- Details content injected by JS, fallback below -->
-        </div>
-      </div>
+<!-- Professional dashboard arrangement -->
+<div class="container py-4">
+  <!-- Greeting -->
+  <h2 class="mb-2" style="color:#003A6C;font-weight:800;">Welcome, <span class="clientNameDisplay"><?= htmlspecialchars($clientName) ?></span>!</h2>
+  <!-- Filter/Search Row -->
+  <div class="row mb-4">
+    <div class="col-12 d-flex flex-wrap gap-3 align-items-center p-2" style="background:#f8fafc;border-radius:16px;box-shadow:0 1px 8px #003a6c08;">
+      <button class="filter-pill active" onclick="filterConsultants('all')">All</button>
+      <button class="filter-pill" onclick="filterConsultants('Marketing')">Marketing</button>
+      <button class="filter-pill" onclick="filterConsultants('Product Dev')">Product Dev</button>
+      <button class="filter-pill" onclick="filterConsultants('Leadership')">Leadership</button>
+      <input class="form-control ms-auto" id="consultantSearch" style="max-width:250px;min-width:170px;" type="search" placeholder="Search..." oninput="searchConsultants()">
     </div>
   </div>
-  <!-- ACCOUNT/FEEDBACK/PASSWORD/BOOKINGS BOT PANEL -->
-  <div class="account-panel mt-3 row g-4">
-    <div class="col-md-5">
-      <h5>My Profile</h5>
-      <form>
-        <div class="mb-2"><input class="form-control" value="<?= htmlspecialchars($clientName) ?>" placeholder="Name"></div>
-        <div class="mb-2"><input class="form-control" value="<?= htmlspecialchars($_SESSION['email'] ?? '') ?>" placeholder="Email" disabled></div>
-        <div class="mb-2"><input class="form-control" value="+233 ..." placeholder="Phone"></div>
-        <button class="btn btn-outline-primary btn-sm mb-2">Update Profile</button>
-      </form>
-      <hr>
-      <a href="change_password.php" class="btn btn-outline-secondary btn-sm">Update Password</a>
-    </div>
-    <div class="col-md-7">
-      <h5>Consultant Feedback</h5>
-      <div class="card mb-2">
-        <div class="card-body">
-          <strong>★★★★★</strong> <br>
-          <span>Client successfully identified core growth areas. Recommended resources for market expansion.</span><br>
-          <a href="#" class="btn btn-link btn-sm">View All Feedback</a>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-body">
-          <strong>Booking History</strong>
-          <ul class="list-unstyled mb-0 ps-1">
-            <li>- Strategy session with Kwame Yeboah, Mar 14</li>
-            <li>- Leadership coaching with Maya Hassan, Mar 6</li>
-            <li>- Tech session with Jason Kraal, Feb 28</li>
-          </ul>
+
+  <!-- Consultant Card Grid -->
+  <div id="consultantList" class="row g-4 mb-5">
+    <!-- JS will render cards as .col-md-6.col-lg-4 for grid effect -->
+  </div>
+  <!-- Consultant Detail (Optional: render as modal for better UX, keep card for now) -->
+  <div id="consultantDetailCard" class="d-none"></div>
+
+  <!-- Appointments CTA Card -->
+  <div class="row justify-content-center mt-1">
+    <div class="col-md-7 col-lg-5">
+      <div class="card text-center shadow" style="border-radius:18px;">
+        <div class="card-body py-4">
+          <h3 class="mb-2" style="color:#003A6C;font-weight:700;">My Appointments</h3>
+          <p class="mb-3" style="font-size:1.1rem;">View and manage all your bookings here.</p>
+          <a href="appointments.php" class="btn btn-primary btn-lg w-100" style="font-size:1.15rem;padding:.85em 0;border-radius:20px;">Go to My Appointments</a>
         </div>
       </div>
     </div>
   </div>
 </div>
+
 <script>
-const consultants = <?= json_encode($consultants) ?>;
+let consultants = [];
 let activeFilter = 'all', selectedIdx = 0;
 function filterConsultants(tag) {
   activeFilter = tag;
@@ -182,39 +118,88 @@ function filterConsultants(tag) {
     b.classList.toggle('active', b.textContent === tag || (tag==='all' && b.textContent==='All')));
   renderConsultants();
 }
-function searchConsultants() {
-  renderConsultants();
-}
+function searchConsultants() { renderConsultants(); }
+// Render consultant cards into the grid
 function renderConsultants() {
   const list = document.getElementById('consultantList');
   const keyword = document.getElementById('consultantSearch').value.toLowerCase();
   list.innerHTML = '';
   let shown = 0;
   consultants.forEach((c,i) => {
-    let show = activeFilter==='all'||c.tags.some(t=>t.toLowerCase().includes(activeFilter.toLowerCase()));
+    let show = activeFilter==='all'||(c.expertise && c.expertise.toLowerCase().includes(activeFilter.toLowerCase()));
     if(show && keyword) {
-      show = c.name.toLowerCase().includes(keyword) || c.tags.some(t=>t.toLowerCase().includes(keyword));
+      show = c.name.toLowerCase().includes(keyword) || (c.expertise && c.expertise.toLowerCase().includes(keyword));
     }
     if(show) {
       let el = document.createElement('div');
-      el.className = 'consultant-card'+(i===selectedIdx?' active':'');
-      el.onclick = ()=>{selectedIdx=i;renderConsultants();showDetails();};
-      el.innerHTML = `<div class='d-flex align-items-center mb-1'><img src='${c.pic}' class='consultant-profile'><div><b>${c.name}</b><br><span class='text-muted small'>${c.tags.join(', ')}</span></div></div><div class='small mb-0'>${c.bio}</div>`;
-      list.appendChild(el);shown++;
+      el.className = 'col-md-6 col-lg-4';
+      el.innerHTML = `<div class='consultant-card shadow-sm' style='background:#fff;border-radius:15px;box-shadow:0 1px 8px #003a6c10;padding:20px 15px;min-height:185px;height:100%;display:flex;flex-direction:column;justify-content:space-between;transition:0.12s;'><div class='d-flex align-items-center mb-3'><img src='${c.pic}' alt='${c.name}' style='width:54px;height:54px;border-radius:50%;object-fit:cover;margin-right:14px;border:2px solid #63aaf9;'><div><b class='h5 mb-0' style='color:#003A6C;'>${c.name}</b><br><span class='text-secondary small'>${c.expertise||''}</span></div></div><div class='small mb-2 text-muted'>${c.bio||''}</div><a href='book.php?consultant_id=${c.consultant_id}' class='btn btn-outline-primary btn-sm mt-auto px-3' style='border-radius:14px;'>Book Session</a></div>`;
+      list.appendChild(el); shown++;
     }
   });
   if(!shown) {
-    list.innerHTML = '<div class="text-muted">No consultants found.</div>';
+    list.innerHTML = '<div class="text-muted text-center py-5">No consultants found.</div>';
   }
 }
 function showDetails() {
+  if (!consultants.length) {
+    document.getElementById('consultantDetailCard').innerHTML = '<div class="text-muted text-center py-5">Select a consultant to view details.<br>(No consultants found)</div>';
+    return;
+  }
   const c = consultants[selectedIdx];
   document.getElementById('consultantDetailCard').innerHTML=
-    `<div class='p-4 text-center'><img src='${c.pic}' style='width:86px;height:86px;border-radius:50%;border:3px solid #63aaf9;margin-bottom:7px;'><div><h4 class='mb-0'>${c.name}</h4><div class='text-info small mb-2'>${c.exp}</div><div class='mb-1'>${c.bio}</div></div><div class='mb-2'>`+
-    c.tags.map(t=>`<span class='consultant-tag'>${t}</span>`).join('')+`</div>`+
-    `<a href='book.php?consultant_id=${selectedIdx+1}' class='btn btn-primary btn-lg w-100 mt-3'>Book Session</a></div>`;
+    `<div class='p-4 text-center'><img src='${c.pic}' style='width:86px;height:86px;border-radius:50%;border:3px solid #63aaf9;margin-bottom:7px;'><div><h4 class='mb-0'>${c.name}</h4><div class='text-info small mb-2'>${c.expertise||''}</div><div class='mb-1'>${c.bio||''}</div></div><div class='mb-2'></div><a href='book.php?consultant_id=${c.consultant_id}' class='btn btn-primary btn-lg w-100 mt-3'>Book Session</a></div>`;
 }
-renderConsultants();showDetails();
+// On load, fetch consultant list from API
+fetch('../api/consultants.php?action=list')
+  .then(r=>r.json())
+  .then(data=>{
+    consultants = data;
+    selectedIdx=0;
+    renderConsultants();
+    showDetails();
+  });
+$(function(){
+  // Handle profile update via AJAX
+  $('#profile-form').on('submit', function(e){
+    e.preventDefault();
+    var formData = $(this).serializeArray();
+    var name = $('#client-name-input').val();
+    $.post('../api/auth.php?action=update_profile', formData, function(resp){
+      if(resp.success){
+        $('#profile-toast').html('<div class="alert alert-success">Profile updated successfully!</div>');
+        if(resp.name) name = resp.name; // In case backend returns sanitized/official name
+        $('.clientNameDisplay').text(name);
+        var avatarSrc = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=003A6C&color=fff&size=64';
+        $('.profile-mini').attr('src', avatarSrc);
+        // Gently reload page to update everything after 1.5s
+        setTimeout(()=>location.reload(), 1500);
+      }else{
+        $('#profile-toast').html('<div class="alert alert-danger">'+(resp.error||'Update failed')+'</div>');
+      }
+    },'json');
+  });
+
+  // Booking history -- fetch real completed appointments with feedback
+  function loadBookingHistory(){
+    $.getJSON('../api/appointments.php?action=list', function(appts){
+      var list = '';
+      if(Array.isArray(appts)){
+        var completed = appts.filter(a=>a.status==='completed' && (a.client_notes||a.consultant_notes));
+        completed = completed.slice(0,4); // Show last 4 entries
+        if(completed.length){
+          completed.forEach(function(a){
+            list += `<li>- ${a.consultant_name}, ${a.date}<br><span class='small text-secondary'>You: ${a.client_notes||''}</span><br><span class='small text-success'>Consultant: ${a.consultant_notes||''}</span></li>`;
+          });
+        }else{
+          list = '<li>No feedback received yet.</li>';
+        }
+      }
+      $('#booking-history-list').html(list);
+    });
+  }
+  loadBookingHistory();
+});
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
