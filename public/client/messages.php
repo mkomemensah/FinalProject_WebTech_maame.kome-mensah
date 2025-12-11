@@ -42,6 +42,12 @@ require_role('client');
       <div class="section-head">Conversations</div>
       <div id="conv-list" style="min-height:120px;"><div class="text-center p-4 text-secondary">Loading...</div></div>
       <div class="section-head">Start new chat</div>
+      <div style="padding:8px;">
+        <div class="input-group mb-2">
+          <input id="recipient-search" class="form-control form-control-sm" placeholder="Search consultants by name or email..." aria-label="Search recipients">
+          <button id="recipient-show-all" class="btn btn-outline-secondary btn-sm" type="button">Show all</button>
+        </div>
+      </div>
       <div id="recipient-list" style="max-height:220px;overflow:auto;padding:6px 4px;"></div>
     </div>
     <div class="messages-pane d-flex flex-column">
@@ -61,12 +67,21 @@ require_role('client');
 <script>
 let currentChatUserId = null;
 let currentChatName = '';
+let usersCache = []; // cached recipients for search/filtering
 
 function safeHtml(s){ return $('<div/>').text(s).html(); }
 
 function showError(msg){ alert(msg); }
 
-function loadUsers(){
+function renderRecipientList(users){
+  if(!Array.isArray(users) || users.length===0){ $('#recipient-list').html('<div class="p-3 text-secondary">No users available</div>'); return; }
+  const html = users.map(u=>`<div class="conv-user" data-id="${u.id}" data-name="${safeHtml(u.name)}"><div class="avatar">${safeHtml((u.name||'U').charAt(0)||'U')}</div><div style="flex:1"><div class="conv-name">${safeHtml(u.name)}</div><div class="conv-snippet text-muted small">${safeHtml(u.expertise||u.email||'')}</div></div></div>`).join('');
+  $('#recipient-list').html(html);
+  $('#recipient-list .conv-user').on('click', function(){ const id = $(this).data('id'); const name = $(this).data('name'); openConversation(id,name); });
+}
+
+function loadUsers(forceReload){
+  if(!forceReload && usersCache && usersCache.length){ renderRecipientList(usersCache); return; }
   $('#recipient-list').html('<div class="text-center p-3 text-secondary">Loading...</div>');
   $.getJSON('../api/messages.php?action=users').done(function(resp){
     if(!resp || !resp.success){
@@ -74,24 +89,16 @@ function loadUsers(){
       $('#recipient-list').html('<div class="p-3 text-danger">Could not load users</div>');
       return;
     }
-    const users = resp.users || [];
-    if(users.length===0){ $('#recipient-list').html('<div class="p-3 text-secondary">No users available</div>'); return; }
-    const html = users.map(u=>`<div class="conv-user" data-id="${u.id}" data-name="${safeHtml(u.name)}"><div class="avatar">${safeHtml(u.name.charAt(0)||'U')}</div><div><div class="conv-name">${safeHtml(u.name)}</div><div class="conv-snippet text-muted small">${safeHtml(u.email||'')}</div></div></div>`).join('');
-    $('#recipient-list').html(html);
-    $('#recipient-list .conv-user').on('click', function(){
-      const id = $(this).data('id');
-      const name = $(this).data('name');
-      openConversation(id,name);
-    });
+    usersCache = resp.users || [];
+    renderRecipientList(usersCache);
   }).fail(function(jqXHR){
     console.error('Failed to load users', jqXHR.status, jqXHR.responseText);
     // Try a graceful fallback: load public consultants list (visible to clients)
     $.getJSON('../api/consultants.php?action=list').done(function(list){
       if(Array.isArray(list) && list.length){
         const data = list.map(c=>({ id: c.user_id, consultant_id: c.consultant_id, name: c.name, email: c.email || '', expertise: c.expertise || '', bio: c.bio || '', pic: c.pic || ('https://ui-avatars.com/api/?name='+encodeURIComponent(c.name)) }));
-        const html = data.map(u=>`<div class="conv-user" data-id="${u.id}" data-name="${safeHtml(u.name)}"><div class="avatar">${safeHtml(u.name.charAt(0)||'U')}</div><div><div class="conv-name">${safeHtml(u.name)}</div><div class="conv-snippet text-muted small">${safeHtml(u.expertise||u.email||'')}</div></div></div>`).join('');
-        $('#recipient-list').html(html);
-        $('#recipient-list .conv-user').on('click', function(){ const id = $(this).data('id'); const name = $(this).data('name'); openConversation(id,name); });
+        usersCache = data;
+        renderRecipientList(data);
         return;
       }
       showError('Failed to load users. Please sign in or try again.');
@@ -165,8 +172,13 @@ $('#send-msg-form').on('submit', function(e){
   }).always(function(){ $('#send-btn').prop('disabled', false); });
 });
 
-// initial
-loadUsers(); loadInbox();
+// attach search handlers
+$(function(){
+  $('#recipient-search').on('input', function(){ const q = $(this).val().trim().toLowerCase(); if(!q){ renderRecipientList(usersCache); return; } const filtered = (usersCache||[]).filter(u=> (u.name||'').toLowerCase().indexOf(q) !== -1 || (u.email||'').toLowerCase().indexOf(q) !== -1 ); renderRecipientList(filtered);
+  });
+  $('#recipient-show-all').on('click', function(){ $('#recipient-search').val(''); if(usersCache && usersCache.length){ renderRecipientList(usersCache); } else { loadUsers(true); } });
+  loadUsers(); loadInbox();
+});
 
 </script>
 </body>

@@ -15,11 +15,11 @@ secure_session_start();
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/dashboard.php">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/consultants.php">Consultants</a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/book.php">Book Appointment</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/messages.php">Messages</a></li>
+          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/messages.php">Messages <span id="nav-msg-badge" class="badge bg-danger ms-1" style="display:none;">0</span></a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/profile.php">Profile</a></li>
         <?php elseif ($_SESSION['role'] === 'consultant'): ?>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/dashboard.php">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/messages.php">Messages</a></li>
+          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/messages.php">Messages <span id="nav-msg-badge" class="badge bg-danger ms-1" style="display:none;">0</span></a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/profile.php">Profile</a></li>
         <?php elseif ($_SESSION['role'] === 'admin'): ?>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>admin/dashboard.php">Dashboard</a></li>
@@ -34,3 +34,16 @@ secure_session_start();
     </div>
   </div>
 </nav>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script>
+  // Load unread message count and update nav badge
+  $(function(){
+    $.getJSON('<?= BASE_URL ?>api/messages.php?action=inbox').done(function(resp){
+      if(resp && resp.success){
+        var total = resp.unread_total || 0;
+        if(total>0){ $('#nav-msg-badge').text(total).show(); } else { $('#nav-msg-badge').hide(); }
+        // also, if there are per-conversation unread counts, you could store them in sessionStorage for quick use
+      }
+    }).fail(function(){ /* silently ignore */ });
+  });
+  </script>

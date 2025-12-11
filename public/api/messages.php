@@ -33,8 +33,8 @@ switch ($action) {
                 ];
             }, $rows);
         } else {
-            // list clients
-            $stmt = $pdo->prepare("SELECT user_id, name, email FROM users WHERE role = 'client'");
+            // list clients (all active clients)
+            $stmt = $pdo->prepare("SELECT user_id, name, email FROM users WHERE role = 'client' AND status = 'active' ORDER BY name ASC");
             $stmt->execute();
             $rows = $stmt->fetchAll();
             $data = array_map(function($r){
@@ -60,17 +60,31 @@ switch ($action) {
             $rows = $stmt->fetchAll();
             foreach ($rows as $r) { $partner_data[$r['user_id']] = $r; }
         }
+        // unread counts per partner (messages sent TO current user)
+        $unread_map = [];
+        if (!empty($partners)) {
+            $placeholders = implode(',', array_fill(0, count($partners), '?'));
+            $stmt = $pdo->prepare("SELECT sender_id AS partner_id, COUNT(*) AS cnt FROM messages WHERE recipient_id = ? AND is_read = 0 GROUP BY sender_id");
+            $stmt->execute([$user_id]);
+            $rows = $stmt->fetchAll();
+            foreach ($rows as $r) { $unread_map[$r['partner_id']] = intval($r['cnt']); }
+        }
+
         $out = [];
+        $total_unread = 0;
         foreach ($convos as $m) {
             $partner_id = ($m['sender_id'] == $user_id) ? $m['recipient_id'] : $m['sender_id'];
             $p = $partner_data[$partner_id] ?? null;
+            $un = $unread_map[$partner_id] ?? 0;
+            $total_unread += $un;
             $out[] = array_merge($m, [
                 'partner_id' => $partner_id,
                 'partner_name' => $p ? $p['name'] : null,
-                'partner_email' => $p ? $p['email'] : null
+                'partner_email' => $p ? $p['email'] : null,
+                'unread' => $un
             ]);
         }
-        echo json_encode(['success' => true, 'conversations' => $out]);
+        echo json_encode(['success' => true, 'conversations' => $out, 'unread_total' => $total_unread]);
         break;
 
     case 'thread':
