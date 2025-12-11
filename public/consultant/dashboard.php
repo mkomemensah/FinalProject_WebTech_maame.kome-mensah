@@ -67,6 +67,7 @@ body{background:linear-gradient(120deg,#eaf2fa 0%,#d5e3fa 100%);font-family:'Seg
    <ul class="navbar-nav flex-row gap-3 ms-auto align-items-center">
      <li class="nav-item"><a class="nav-link" href="dashboard.php">Dashboard</a></li>
      <li class="nav-item"><a class="nav-link" href="appointments.php">Appointments</a></li>
+     <li class="nav-item"><a class="nav-link" href="messages.php">Messages</a></li>
      <li class="nav-item navbar-profile dropdown">
        <a class="dropdown-toggle nav-link" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-fill"></i> <?=htmlspecialchars($_SESSION['name'])?></a>
        <ul class="dropdown-menu dropdown-menu-end">

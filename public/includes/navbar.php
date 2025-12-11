@@ -13,9 +13,9 @@ secure_session_start();
       <ul class="navbar-nav ms-auto">
         <?php if ($_SESSION['role'] === 'client'): ?>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/dashboard.php">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/messages.php">Messages</a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/consultants.php">Consultants</a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/book.php">Book Appointment</a></li>
+          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/messages.php">Messages</a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>client/profile.php">Profile</a></li>
         <?php elseif ($_SESSION['role'] === 'consultant'): ?>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>consultant/dashboard.php">Dashboard</a></li>

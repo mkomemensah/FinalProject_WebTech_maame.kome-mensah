@@ -14,134 +14,160 @@ require_role('client');
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.3/font/bootstrap-icons.css">
   <style>
     body { background:linear-gradient(120deg,#eaf2fa 0%,#d5e3fa 100%); }
-    .chat-container{display:flex;height:78vh;max-height:650px;background:#fff;box-shadow:0 4px 36px #1976d21a;border-radius:22px;overflow:hidden;margin:auto;margin-top:2.4rem;max-width:960px;}
+    .chat-container{display:flex;height:78vh;max-height:720px;background:#fff;box-shadow:0 4px 36px #1976d21a;border-radius:18px;overflow:hidden;margin:auto;margin-top:2.4rem;max-width:1000px;}
     .conv-list{width: 320px;background:#f9fbfd;border-right:1.5px solid #e6edf4;overflow-y:auto;}
-    .conv-list .conv-user{cursor:pointer;padding:.89em 1.2em;border-bottom:1px solid #ececec;transition:.12s;background:none;display:flex;gap:9px;align-items:center;}
-    .conv-user.active, .conv-user:hover{background:#e3f2fd;}
-    .conv-user .avatar{width:40px;height:40px;border-radius:50%;background:#1675cc;color:#fff;font-size:1.25em;display:flex;align-items:center;justify-content:center;font-weight:bold;box-shadow:0 0 6px #1675cc25;}
-    .conv-user .conv-name{font-weight:600;font-size:1.01em;color:#1870ba;}
-    .conv-user .conv-snippet{font-size:.95em;color:#5b738a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .conv-user .conv-meta{margin-left:auto;text-align:right;}
-    .conv-user .conv-time{font-size:.93em;color:#9cb3c5;letter-spacing:.01em;}
-    .unread-dot{display:inline-block;width:10px;height:10px;background:#198754;border-radius:100%;position:relative;top:2px;margin-left:4px;}
-    .messages-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#f5faff;}
-    .messages-header{padding:.95em 1.4em .69em 1.5em;border-bottom:1.5px solid #dde9f5;background:#fdfdfe;font-weight:700;font-size:1.1em;color:#003A6C;letter-spacing:.01em;}
-    .message-list{flex:1;overflow-y:auto;padding:1.6em 1.5em 1.5em 1.5em;display:flex;flex-direction:column;gap:.62em;}
-    .bubble{display:inline-block;max-width:70%;padding:.65em 1.1em;border-radius:15px;font-size:1.07em;box-shadow:0 1px 6px #1976d210;position:relative;}
-    .bubble.client{background:#1563a9;color:#fff;margin-left:auto;border-bottom-right-radius:8px 20px;}
-    .bubble.consultant{background:#e3f2fd;color:#14456c;border-bottom-left-radius:8px 20px;}
-    .bubble .msg-time{display:block;font-size:.91em;color:#ddeafb;margin-top:2px;float:right;margin-left:8px;}
-    .bubble.consultant .msg-time{color:#7e98b6;}
-    .msg-meta{font-size:.91em;color:#3770a5;display:inline-block;margin-right:10px;}
-    .msg-compose{padding:1.1em 1.7em 1.1em 1.5em;border-top:1.5px solid #dde9f5;background:#fff;}
-    .msg-compose-row{display:flex;align-items:center;gap:13px;}
-    .msg-compose textarea{flex:1;border-radius:14px;resize:none;min-height:44px;max-height:78px;font-size:1.09em;background:#f4fafe;border:1.5px solid #bdd6e6;margin-right:3px;transition:.13s;}
-    .msg-compose textarea:focus{border-color:#0070b8;box-shadow:0 0 0 2px #0070b833;}
-    .msg-send-btn{background:#0567f9;color:#fff;border-radius:15px;padding:.52em 2.13em;font-weight:600;font-size:1.09em;transition:.13s;}
-    .msg-send-btn:active,.msg-send-btn:focus{background:#1665bb;}
-    @media(max-width:900px){.chat-container{flex-direction:column;height:100vh;min-height:600px;}.conv-list{width:100%;max-height:160px;border-right:none;border-bottom:1.5px solid #e6edf4;}.messages-pane{flex:1;}}
+    .conv-list .section-head{padding:.8rem 1rem;border-bottom:1px solid #eef6fb;background:#fbfdff;font-weight:700;color:#034a76}
+    .conv-list .conv-user{cursor:pointer;padding:.75em 1rem;border-bottom:1px solid #f1f6fa;display:flex;gap:10px;align-items:center;}
+    .conv-user.active, .conv-user:hover{background:#eaf6ff}
+    .conv-user .avatar{width:44px;height:44px;border-radius:50%;background:#1675cc;color:#fff;font-size:1.1em;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .conv-user .conv-name{font-weight:700;color:#083a60}
+    .conv-user .conv-snippet{font-size:.92em;color:#5b7282;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .messages-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#f7fbff}
+    .messages-header{padding:1rem;border-bottom:1px solid #e6eef6;background:#fff;font-weight:700;color:#07324a}
+    .message-list{flex:1;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column;gap:.6rem}
+    .bubble{display:inline-block;max-width:72%;padding:.65em 1em;border-radius:12px;font-size:1rem}
+    .bubble.me{background:#0070b8;color:#fff;margin-left:auto;border-bottom-right-radius:6px}
+    .bubble.them{background:#e9f4fb;color:#0b3b5e;border-bottom-left-radius:6px}
+    .bubble .meta{display:block;font-size:.82em;color:#86a7c4;margin-top:.25rem}
+    .msg-compose{padding:1rem;border-top:1px solid #e6eef6;background:#fff}
+    .msg-compose .form-control{border-radius:12px}
+    @media(max-width:900px){.chat-container{flex-direction:column;height:100vh;}.conv-list{width:100%;max-height:180px;border-right:none;border-bottom:1px solid #e6edf4}}
   </style>
 </head>
 <body>
 <div class="container">
-  <h2 class="text-center mt-4 mb-3" style="color:#003A6C;font-weight:900;">Messages</h2>
-  <div class="chat-container"><div class="conv-list" id="conv-list">
-    <div class="text-center p-4"><span class="text-secondary">Loading...</span></div>
-  </div>
-  <div class="messages-pane d-flex flex-column">
-    <div class="messages-header" id="messages-header">Select a conversation</div>
-    <div class="message-list flex-grow-1" id="message-list" style="overflow-y:auto;"></div>
-    <div class="msg-compose border-top" id="msg-compose" style="display:none;">
-      <form id="send-msg-form" class="msg-compose-row">
-        <textarea class="form-control" placeholder="Type your message..." id="msg-input"></textarea>
-        <button type="submit" class="msg-send-btn"><i class="bi bi-send"></i></button>
-      </form>
+  <h2 class="text-center mt-4 mb-3" style="color:#003A6C;font-weight:800;">Messages</h2>
+  <div class="chat-container">
+    <div class="conv-list">
+      <div class="section-head">Conversations</div>
+      <div id="conv-list" style="min-height:120px;"><div class="text-center p-4 text-secondary">Loading...</div></div>
+      <div class="section-head">Start new chat</div>
+      <div id="recipient-list" style="max-height:220px;overflow:auto;padding:6px 4px;"></div>
+    </div>
+    <div class="messages-pane d-flex flex-column">
+      <div class="messages-header" id="messages-header">Select a conversation</div>
+      <div class="message-list" id="message-list"></div>
+      <div class="msg-compose" id="msg-compose" style="display:none;">
+        <form id="send-msg-form" class="d-flex">
+          <textarea id="msg-input" name="content" class="form-control me-2" placeholder="Type a message" rows="2"></textarea>
+          <button id="send-btn" class="btn btn-primary" disabled><i class="bi bi-send"></i></button>
+        </form>
+      </div>
     </div>
   </div>
 </div>
+
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
 let currentChatUserId = null;
-// Loads consultant list & merges with all threads for inbox UI
-function loadConsultantInbox() {
-  $('#conv-list').html('<div class="text-center p-4"><span class="text-secondary">Loading...</span></div>');
-  // Load all consultants this client has ever booked
-  $.getJSON('../api/appointments.php?action=list', function(appts) {
-    let seen = {}, consultants = [];
-    if(appts && appts.length){
-      appts.forEach(a => {
-        if(!seen[a.consultant_id]) {
-          seen[a.consultant_id] = 1;
-          consultants.push({
-            id: a.consultant_id,
-            name: a.consultant_name,
-            email: a.consultant_email,
-            pic: a.consultant_pic||"https://ui-avatars.com/api/?name="+encodeURIComponent(a.consultant_name)+"&background=0070b8&color=fff"
-          });
-        }
-      });
+let currentChatName = '';
+
+function safeHtml(s){ return $('<div/>').text(s).html(); }
+
+function showError(msg){ alert(msg); }
+
+function loadUsers(){
+  $('#recipient-list').html('<div class="text-center p-3 text-secondary">Loading...</div>');
+  $.getJSON('../api/messages.php?action=users').done(function(resp){
+    if(!resp || !resp.success){
+      console.error('messages.php?action=users returned error', resp);
+      $('#recipient-list').html('<div class="p-3 text-danger">Could not load users</div>');
+      return;
     }
-    // Load actual messages for previews
-    $.getJSON('../api/messages.php?action=inbox', function(resp){
-      let msgMap = {};
-      if(resp.success && Array.isArray(resp.conversations)){
-        resp.conversations.forEach(c=>{
-          let key = c.sender_id == <?=intval($_SESSION['user_id'])?> ? c.recipient_id : c.sender_id;
-          msgMap[key] = c;
-        });
+    const users = resp.users || [];
+    if(users.length===0){ $('#recipient-list').html('<div class="p-3 text-secondary">No users available</div>'); return; }
+    const html = users.map(u=>`<div class="conv-user" data-id="${u.id}" data-name="${safeHtml(u.name)}"><div class="avatar">${safeHtml(u.name.charAt(0)||'U')}</div><div><div class="conv-name">${safeHtml(u.name)}</div><div class="conv-snippet text-muted small">${safeHtml(u.email||'')}</div></div></div>`).join('');
+    $('#recipient-list').html(html);
+    $('#recipient-list .conv-user').on('click', function(){
+      const id = $(this).data('id');
+      const name = $(this).data('name');
+      openConversation(id,name);
+    });
+  }).fail(function(jqXHR){
+    console.error('Failed to load users', jqXHR.status, jqXHR.responseText);
+    // Try a graceful fallback: load public consultants list (visible to clients)
+    $.getJSON('../api/consultants.php?action=list').done(function(list){
+      if(Array.isArray(list) && list.length){
+        const data = list.map(c=>({ id: c.user_id, consultant_id: c.consultant_id, name: c.name, email: c.email || '', expertise: c.expertise || '', bio: c.bio || '', pic: c.pic || ('https://ui-avatars.com/api/?name='+encodeURIComponent(c.name)) }));
+        const html = data.map(u=>`<div class="conv-user" data-id="${u.id}" data-name="${safeHtml(u.name)}"><div class="avatar">${safeHtml(u.name.charAt(0)||'U')}</div><div><div class="conv-name">${safeHtml(u.name)}</div><div class="conv-snippet text-muted small">${safeHtml(u.expertise||u.email||'')}</div></div></div>`).join('');
+        $('#recipient-list').html(html);
+        $('#recipient-list .conv-user').on('click', function(){ const id = $(this).data('id'); const name = $(this).data('name'); openConversation(id,name); });
+        return;
       }
-      if(!consultants.length){$('#conv-list').html('<div class="text-center text-muted p-4">No conversations.</div>');return;}
-      let html = consultants.map(c=>{
-        let msg = msgMap[c.id]||{};
-        let snippet = msg.content ? (msg.content.length>32?msg.content.substr(0,32)+'...':msg.content) : '<span class="small text-muted">Start a conversation</span>';
-        let time = msg.sent_at?msg.sent_at.substr(5,11):'';
-        return `<div class='conv-user' data-id='${c.id}'>
-          <span class='avatar'><img src='${c.pic}' style='width:37px;height:37px;border-radius:100%;object-fit:cover'></span>
-          <div><div class='conv-name'>${c.name}</div><div class='conv-snippet'>${snippet}</div></div><div class='conv-meta'><span class='conv-time'>${time}</span></div></div>`;
-      }).join('');
-      $('#conv-list').html(html);
+      showError('Failed to load users. Please sign in or try again.');
+    }).fail(function(){
+      showError('Failed to load users. Please sign in or try again.');
     });
   });
 }
-function loadThread(user_id, user_name) {
-  $('#messages-header').text(user_name);
-  $('#msg-compose').show();
-  $('#send-msg-form')[0].reset();
-  $('#message-list').html('<div class="text-center text-muted">Loading...</div>');
-  $.getJSON('../api/messages.php?action=thread&user_id='+user_id, function(resp){
-    if(!resp.success||!resp.messages.length){
-      $('#message-list').html('<div class="text-center text-muted py-5">No messages yet.</div>');return;
-    }
-    $('#message-list').html(resp.messages.map(m=>{
-      let isMe = (m.sender_id == <?=intval($_SESSION['user_id'])?>);
-      let cls = isMe?'client':'consultant';
-      let time = m.sent_at.substr(11,5);
-      return `<div class='bubble ${cls}'><span class='msg-meta'>${isMe?'You':'Consultant'}</span> ${m.content}<span class='msg-time'>${time}</span></div>`;
-    }).join(''));
-    $('#message-list').scrollTop($('#message-list')[0].scrollHeight);
-    currentChatUserId = user_id;
-  });
+
+function loadInbox(){
+  $('#conv-list').html('<div class="text-center p-3 text-secondary">Loading...</div>');
+  $.getJSON('../api/messages.php?action=inbox').done(function(resp){
+    if(!resp || !resp.success){ $('#conv-list').html('<div class="p-3 text-secondary">No conversations</div>'); return; }
+    const convos = resp.conversations || [];
+    if(convos.length===0){ $('#conv-list').html('<div class="p-3 text-secondary">No conversations yet</div>'); return; }
+    const html = convos.map(c=>{
+      const other = c.partner_name || c.partner_id || 'User';
+      const snippet = c.content ? c.content.substring(0,60) : '';
+      return `<div class="conv-user" data-id="${c.partner_id}" data-name="${safeHtml(other)}"><div class="avatar">${safeHtml((other||'U').charAt(0))}</div><div style="flex:1"><div class="conv-name">${safeHtml(other)}</div><div class="conv-snippet">${safeHtml(snippet)}</div></div><div class="conv-meta text-end"><div class="conv-time small text-muted">${c.sent_at?c.sent_at:''}</div></div></div>`;
+    }).join('');
+    $('#conv-list').html(html);
+    $('#conv-list .conv-user').on('click', function(){
+      const id = $(this).data('id');
+      const name = $(this).data('name');
+      openConversation(id,name);
+    });
+  }).fail(function(){ $('#conv-list').html('<div class="p-3 text-danger">Error loading conversations</div>'); });
 }
-$('#conv-list').on('click','.conv-user',function(){
-  $('#conv-list .conv-user').removeClass('active');
-  $(this).addClass('active');
-  let user_id = $(this).data('id'),name = $(this).find('.conv-name').text();
-  loadThread(user_id,name);
-});
-$('#send-msg-form').on('submit',function(e){
+
+function openConversation(userId, name){
+  currentChatUserId = userId; currentChatName = name || '';
+  $('#messages-header').text(currentChatName || 'Conversation');
+  $('#msg-compose').show(); $('#send-btn').prop('disabled', false);
+  loadThread(userId);
+}
+
+function loadThread(userId){
+  $('#message-list').html('<div class="text-center p-3 text-secondary">Loading messages...</div>');
+  $.getJSON('../api/messages.php?action=thread&user_id='+encodeURIComponent(userId)).done(function(resp){
+    if(!resp || !resp.success){ $('#message-list').html('<div class="p-3 text-secondary">Could not load messages</div>'); return; }
+    const msgs = resp.messages || [];
+    if(msgs.length===0){ $('#message-list').html('<div class="p-3 text-secondary">No messages yet. Say hello!</div>'); return; }
+    const me = <?php echo json_encode($_SESSION['user_id'] ?? 0); ?>;
+    const html = msgs.map(m=>{
+      const cls = (m.sender_id==me)?'bubble me':'bubble them';
+      const time = m.sent_at ? m.sent_at : '';
+      return `<div class="${cls}">${safeHtml(m.content)}<span class="meta">${safeHtml(time)}</span></div>`;
+    }).join('');
+    $('#message-list').html(html);
+    // scroll to bottom
+    const ml = document.getElementById('message-list'); ml.scrollTop = ml.scrollHeight;
+  }).fail(function(jqXHR){ showError('Failed to load messages'); });
+}
+
+$('#send-msg-form').on('submit', function(e){
   e.preventDefault();
-  let content = $('#msg-input').val().trim();
-  if(!content||!currentChatUserId)return;
-  $.post('../api/messages.php?action=send', {recipient_id: currentChatUserId, content: content}, function(resp){
-    if(resp.success) {
-      $('#msg-input').val('');
-      loadThread(currentChatUserId,$('#messages-header').text());
-      loadConsultantInbox();
-    }
-  },'json');
+  const content = $('#msg-input').val().trim();
+  if(!content){ showError('Please type a message before sending.'); return; }
+  if(!currentChatUserId){ showError('No recipient selected. Please choose a conversation or recipient.'); return; }
+  console.log('Sending message', { recipient_id: currentChatUserId, content });
+  $('#send-btn').prop('disabled', true);
+  $.post('../api/messages.php?action=send', {recipient_id: currentChatUserId, content: content}).done(function(resp){
+    console.log('send response', resp);
+    if(resp && resp.success){ $('#msg-input').val(''); loadThread(currentChatUserId); loadInbox(); }
+    else{ showError((resp && resp.error) ? resp.error : 'Failed to send'); }
+  }).fail(function(jqXHR){
+    console.error('send failed', jqXHR.status, jqXHR.responseText);
+    if (jqXHR.responseText && jqXHR.responseText.indexOf('<!DOCTYPE')===0) { showError('Session expired. Please sign in.'); }
+    else if (jqXHR.responseText) { try { const j = JSON.parse(jqXHR.responseText); showError(j.error || 'Server error'); } catch(e){ showError('Network/server error sending message'); } }
+    else showError('Network/server error sending message');
+  }).always(function(){ $('#send-btn').prop('disabled', false); });
 });
-// Initial load
-loadConsultantInbox();
+
+// initial
+loadUsers(); loadInbox();
+
 </script>
 </body>
 </html>
