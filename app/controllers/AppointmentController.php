@@ -92,6 +92,217 @@ class AppointmentController {
         $stmt->execute([$client_id]);
         return $stmt->fetchAll();
     }
+    /**
+     * Reschedule an existing appointment
+     * @param int $appointment_id
+     * @param int $client_id
+     * @param string $new_date
+     * @param string $new_start_time
+     * @param string $new_end_time
+     * @return array
+     */
+    public static function reschedule($appointment_id, $client_id, $new_date, $new_start_time, $new_end_time) {
+        global $pdo;
+        
+        try {
+            $pdo->beginTransaction();
+            
+            // 1. Verify the appointment exists and belongs to the client
+            $stmt = $pdo->prepare(
+                "SELECT a.*, av.date, av.start_time, av.end_time, a.consultant_id 
+                 FROM appointments a 
+                 JOIN availability av ON a.availability_id = av.availability_id 
+                 WHERE a.appointment_id = ? AND a.client_id = ? AND a.status IN ('pending', 'confirmed')"
+            );
+            $stmt->execute([$appointment_id, $client_id]);
+            $appointment = $stmt->fetch();
+            
+            if (!$appointment) {
+                return ['success' => false, 'error' => 'Appointment not found or cannot be rescheduled.'];
+            }
+            
+            // 2. Validate new date/time
+            $now = new DateTime();
+            $newDateTime = new DateTime("$new_date $new_start_time");
+            
+            if ($newDateTime <= $now) {
+                return ['success' => false, 'error' => 'New appointment time must be in the future.'];
+            }
+            
+            if ($new_start_time >= $new_end_time) {
+                return ['success' => false, 'error' => 'End time must be after start time.'];
+            }
+            
+            // 3. Check if the consultant is available at the new time
+            $stmt = $pdo->prepare(
+                "SELECT COUNT(*) as conflict_count 
+                 FROM availability av 
+                 JOIN appointments a ON av.availability_id = a.availability_id 
+                 WHERE av.consultant_id = ? 
+                 AND av.date = ? 
+                 AND av.start_time = ? 
+                 AND av.end_time = ? 
+                 AND a.appointment_id != ? 
+                 AND a.status IN ('pending', 'confirmed')"
+            );
+            $stmt->execute([
+                $appointment['consultant_id'], 
+                $new_date, 
+                $new_start_time, 
+                $new_end_time, 
+                $appointment_id
+            ]);
+            $conflict = $stmt->fetch();
+            
+            if ($conflict['conflict_count'] > 0) {
+                return ['success' => false, 'error' => 'The selected time slot is not available.'];
+            }
+            
+            // 4. Create new availability for the rescheduled time
+            $stmt = $pdo->prepare(
+                "INSERT INTO availability (consultant_id, date, start_time, end_time, status) 
+                 VALUES (?, ?, ?, ?, 'booked')"
+            );
+            $stmt->execute([
+                $appointment['consultant_id'],
+                $new_date,
+                $new_start_time,
+                $new_end_time
+            ]);
+            $new_availability_id = $pdo->lastInsertId();
+            
+            // 5. Update the appointment with the new availability
+            $stmt = $pdo->prepare(
+                "UPDATE appointments 
+                 SET availability_id = ?, status = 'pending', updated_at = NOW() 
+                 WHERE appointment_id = ?"
+            );
+            $stmt->execute([$new_availability_id, $appointment_id]);
+            
+            // 6. Log the reschedule in audit log
+            $audit_data = [
+                'old_date' => $appointment['date'],
+                'old_start_time' => $appointment['start_time'],
+                'old_end_time' => $appointment['end_time'],
+                'new_date' => $new_date,
+                'new_start_time' => $new_start_time,
+                'new_end_time' => $new_end_time
+            ];
+            
+            Audit::log(
+                $client_id,
+                'appointment_rescheduled',
+                'appointment',
+                $appointment_id,
+                json_encode($audit_data)
+            );
+            
+            $pdo->commit();
+            return ['success' => true, 'message' => 'Appointment rescheduled successfully.'];
+            
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            error_log("Error rescheduling appointment: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Failed to reschedule appointment. Please try again.'];
+        }
+    }
+    
+    /**
+     * Cancel an appointment
+     * @param int $appointment_id
+     * @param int $user_id
+     * @param string $user_role
+     * @param string $reason
+     * @return array
+     */
+    public static function cancel($appointment_id, $user_id, $user_role, $reason = '') {
+        global $pdo;
+        
+        try {
+            $pdo->beginTransaction();
+            
+            // 1. Get the appointment with related data
+            $query = "SELECT a.*, av.date, av.start_time, av.end_time, c.user_id as client_user_id, co.user_id as consultant_user_id 
+                     FROM appointments a
+                     JOIN availability av ON a.availability_id = av.availability_id
+                     JOIN users c ON a.client_id = c.user_id
+                     JOIN consultants co ON a.consultant_id = co.consultant_id
+                     WHERE a.appointment_id = ?";
+            
+            $params = [$appointment_id];
+            
+            // Add role-based access control
+            if ($user_role === 'client') {
+                $query .= " AND a.client_id = ?";
+                $params[] = $user_id;
+            } elseif ($user_role === 'consultant') {
+                $query .= " AND co.user_id = ?";
+                $params[] = $user_id;
+            }
+            
+            $stmt = $pdo->prepare($query);
+            $stmt->execute($params);
+            $appointment = $stmt->fetch();
+            
+            if (!$appointment) {
+                return ['success' => false, 'error' => 'Appointment not found or you do not have permission to cancel it.'];
+            }
+            
+            // 2. Check if the appointment can be cancelled
+            $appointment_time = new DateTime("{$appointment['date']} {$appointment['start_time']}");
+            $now = new DateTime();
+            $hours_until_appointment = ($appointment_time->getTimestamp() - $now->getTimestamp()) / 3600;
+            
+            // Allow cancellation up to 1 hour before the appointment
+            if ($hours_until_appointment < 1 && $user_role === 'client') {
+                return ['success' => false, 'error' => 'Appointments can only be cancelled at least 1 hour in advance. Please contact support.'];
+            }
+            
+            // 3. Update the appointment status to cancelled
+            $stmt = $pdo->prepare(
+                "UPDATE appointments 
+                 SET status = 'cancelled', 
+                     cancelled_at = NOW(), 
+                     cancelled_by = ?,
+                     cancellation_reason = ?
+                 WHERE appointment_id = ?"
+            );
+            $stmt->execute([$user_id, $reason, $appointment_id]);
+            
+            // 4. Update the availability status back to available
+            $stmt = $pdo->prepare(
+                "UPDATE availability 
+                 SET status = 'available' 
+                 WHERE availability_id = ?"
+            );
+            $stmt->execute([$appointment['availability_id']]);
+            
+            // 5. Log the cancellation
+            $audit_data = [
+                'cancelled_by' => $user_id,
+                'user_role' => $user_role,
+                'reason' => $reason,
+                'appointment_time' => "{$appointment['date']} {$appointment['start_time']}"
+            ];
+            
+            Audit::log(
+                $user_id,
+                'appointment_cancelled',
+                'appointment',
+                $appointment_id,
+                json_encode($audit_data)
+            );
+            
+            $pdo->commit();
+            return ['success' => true, 'message' => 'Appointment cancelled successfully.'];
+            
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            error_log("Error cancelling appointment: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Failed to cancel appointment. Please try again.'];
+        }
+    }
+    
     public static function getConsultantAppointments($consultant_id) {
         global $pdo;
         $stmt = $pdo->prepare(

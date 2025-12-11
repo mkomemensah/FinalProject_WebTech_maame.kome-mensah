@@ -90,4 +90,51 @@ switch ($action) {
         header('Content-Type: application/json');
         echo json_encode($result);
         break;
+
+    case 'reschedule':
+        require_role('client');
+        
+        $appointment_id = $_POST['appointment_id'] ?? null;
+        $new_date = $_POST['new_date'] ?? null;
+        $new_start_time = $_POST['new_start_time'] ?? null;
+        $new_end_time = $_POST['new_end_time'] ?? null;
+        
+        if (!$appointment_id || !$new_date || !$new_start_time || !$new_end_time) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Missing required fields.']);
+            exit;
+        }
+        
+        $result = AppointmentController::reschedule(
+            $appointment_id,
+            $_SESSION['user_id'],
+            $new_date,
+            $new_start_time,
+            $new_end_time
+        );
+        
+        header('Content-Type: application/json');
+        echo json_encode($result);
+        break;
+        
+    case 'cancel':
+        $appointment_id = $_POST['appointment_id'] ?? null;
+        $reason = $_POST['reason'] ?? '';
+        
+        if (!$appointment_id) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Appointment ID is required.']);
+            exit;
+        }
+        
+        $result = AppointmentController::cancel(
+            $appointment_id,
+            $_SESSION['user_id'],
+            $_SESSION['role'],
+            $reason
+        );
+        
+        header('Content-Type: application/json');
+        echo json_encode($result);
+        break;
 }
