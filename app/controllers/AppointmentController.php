@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/validators.php';
+require_once __DIR__ . '/../utils/audit.php';
 
 class AppointmentController {
     // Book appointment (updated: real slot, no double bookings)
@@ -178,7 +179,10 @@ class AppointmentController {
         $stmt->execute([$appointment_id]);
         // Set slot to booked (redundant but safe)
         $pdo->prepare("UPDATE availability SET status = 'booked' WHERE availability_id = ?")->execute([$appt['availability_id']]);
-        return ['success' => true];
+        // Audit (if performed by admin, record it)
+        $admin_id = $_SESSION['user_id'] ?? null;
+        if ($admin_id) write_audit($admin_id, 'confirm_appointment', 'appointment', $appointment_id, json_encode(['consultant_id'=>$consultant_id]));
+        return ['success'=>true];
     }
 
     // Reject/cancel appointment (consultant side)
@@ -196,7 +200,9 @@ class AppointmentController {
         $stmt->execute([$appointment_id]);
         // Mark slot as available again
         $pdo->prepare("UPDATE availability SET status = 'available' WHERE availability_id = ?")->execute([$appt['availability_id']]);
-        return ['success' => true];
+        $admin_id = $_SESSION['user_id'] ?? null;
+        if ($admin_id) write_audit($admin_id, 'cancel_appointment', 'appointment', $appointment_id, json_encode(['consultant_id'=>$consultant_id]));
+        return ['success'=>true];
     }
 
     public static function autoCompleteSessions($consultant_id=null) {
@@ -226,6 +232,8 @@ class AppointmentController {
         if (!$appt) return ['success'=>false, 'error'=>'Appointment not found or not eligible.'];
         // (REMOVED time check) -- allow marking as completed at any time
         $pdo->prepare("UPDATE appointments SET status = 'completed' WHERE appointment_id = ?")->execute([$appointment_id]);
+        $admin_id = $_SESSION['user_id'] ?? null;
+        if ($admin_id) write_audit($admin_id, 'mark_completed', 'appointment', $appointment_id, json_encode(['consultant_id'=>$consultant_id]));
         return ['success'=>true];
     }
 }

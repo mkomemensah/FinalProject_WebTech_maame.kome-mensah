@@ -8,6 +8,14 @@ $consultants = [];
 $pending_consultants = [];
 $appointments = $pdo->query("SELECT a.*, u.name as client_name, c.user_id as consultant_user_id, u2.name as consultant_name FROM appointments a JOIN users u ON a.client_id = u.user_id JOIN consultants c ON a.consultant_id=c.consultant_id JOIN users u2 ON c.user_id=u2.user_id")->fetchAll();
 $expertise = $pdo->query("SELECT * FROM expertise")->fetchAll();
+// Get audit count if the table exists; avoid fatal error when DB hasn't been migrated yet
+$audit_count = 0;
+try {
+  $audit_count = (int)$pdo->query("SELECT COUNT(*) FROM admin_audit")->fetchColumn();
+} catch (PDOException $e) {
+  // Table missing or other DB error; keep audit_count = 0 and log the issue
+  error_log('Audit count query failed: ' . $e->getMessage());
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -62,16 +70,22 @@ body {background:linear-gradient(120deg,#b0e0ef 0%,#dbcef6 100%);min-height:100v
   </div>
   <div class="row g-4 align-items-stretch mb-3">
     <!-- Manage Expertise -->
-    <!-- System Maintenance (expanded) -->
+    <!-- Logs / System Maintenance -->
     <div class="col-md-12">
       <div class="glass-card">
-        <div class="section-h">System Maintenance</div>
-        <p class="text-muted mb-2">System settings, logs, integrity, and reports.</p>
-        <a href="settings.php" class="btn btn-outline-primary w-100 mb-2">Manage System</a>
-        <div class="d-flex flex-wrap gap-2 mt-2">
-          <a href="logs.php" class="btn btn-outline-secondary">View Logs</a>
-          <a href="integrity.php" class="btn btn-outline-secondary">Data Integrity Check</a>
-          <a href="#" class="btn btn-outline-secondary disabled">Run Reports</a>
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <div class="section-h">System Maintenance & Logs</div>
+            <p class="text-muted mb-2">System settings, audit logs, integrity checks, and reports.</p>
+            <div class="mt-2"><span class="fw-semibold">Audit entries:</span> <?= $audit_count ?></div>
+          </div>
+          <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <a href="audit.php" class="btn btn-primary px-4 py-2">View Logs</a>
+            <div class="mt-2 d-inline-block">
+              <a href="integrity.php" class="btn btn-outline-secondary btn-sm">Data Integrity</a>
+              <a href="settings.php" class="btn btn-outline-secondary btn-sm">Settings</a>
+            </div>
+          </div>
         </div>
       </div>
     </div>

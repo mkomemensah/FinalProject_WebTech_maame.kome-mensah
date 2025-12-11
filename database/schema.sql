@@ -74,3 +74,16 @@ CREATE TABLE admin (
     permissions JSON,
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
+
+-- Audit log for administrative actions (who, what, target, details, ip)
+CREATE TABLE admin_audit (
+    audit_id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_user_id INT NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    target_type VARCHAR(50) DEFAULT NULL,
+    target_id INT DEFAULT NULL,
+    details TEXT DEFAULT NULL,
+    ip_address VARCHAR(45) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_user_id) REFERENCES users(user_id)
+);

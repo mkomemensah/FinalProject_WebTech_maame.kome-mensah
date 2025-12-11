@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../utils/audit.php';
 
 class AdminController {
     public static function addExpertise($data) {
@@ -50,6 +51,9 @@ class AdminController {
         if(!in_array($status, $allowed)) return ['success'=>false, 'error'=>'Invalid status'];
         $stmt = $pdo->prepare("UPDATE users SET status = ? WHERE user_id = ?");
         $stmt->execute([$status, $userId]);
+        // record audit
+        $admin_id = $_SESSION['user_id'] ?? null;
+        if ($admin_id) write_audit($admin_id, 'update_user_status', 'user', $userId, json_encode(['status'=>$status]));
         return ['success'=>true];
     }
     // Note: soft-delete/restore methods removed. Use updateUserStatus(user_id, 'suspended'|'active')
@@ -58,6 +62,8 @@ class AdminController {
         global $pdo;
         $stmt = $pdo->prepare("UPDATE consultants SET profile_status = 'approved' WHERE consultant_id = ?");
         $stmt->execute([$consultantId]);
+        $admin_id = $_SESSION['user_id'] ?? null;
+        if ($admin_id) write_audit($admin_id, 'approve_consultant', 'consultant', $consultantId, null);
         return ['success'=>true];
     }
 }
