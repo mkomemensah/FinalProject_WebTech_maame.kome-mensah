@@ -67,3 +67,19 @@ footer {
     font-size: 0.95rem;
     border-radius: 6px;
 }
+
+/* Admin audit styles */
+.admin-card { padding: 0; overflow: hidden; }
+.admin-card .card-header { background: linear-gradient(90deg,#f8fbff,#ffffff); border-bottom: 0; }
+.admin-card .card-body { padding: 1.25rem; }
+.mono { font-family: Menlo, Monaco, monospace; font-size:0.92rem; }
+.details-preview { max-width: 42rem; display:block; color:#1b2b34; }
+.details-preview a.toggle-details { margin-left: .5rem; font-size:0.9rem; }
+.table thead th { border-bottom: 0; }
+.table-hover tbody tr:hover { background: #fbfdff; }
+.text-monospace { font-family: Menlo, Monaco, monospace; }
+
+@media (max-width:768px){
+    .details-preview { max-width: 100%; }
+    .admin-card .card-header { flex-direction:column; align-items:flex-start; gap:.5rem; }
+}
