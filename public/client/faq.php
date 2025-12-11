@@ -142,25 +142,79 @@ function addBubble(msg, role) {
   const $b = $('<div></div>').addClass(role === 'user' ? 'chat-bubble-user shadow position-relative' : 'chat-bubble-bot shadow position-relative');
   $b.html(msg);
   if(role === 'user') $b.append('<img src="https://randomuser.me/api/portraits/men/65.jpg" alt="Me" class="avatar-user">');
-  if(role === 'bot') $b.append('<img src="../assets/images/logo-icon.png" alt="AI Assistant" class="avatar-bot"><span class="ai-label">&#10024; Answered by AI</span>');
+  if(role === 'bot') $b.append('<img src="https://ui-avatars.com/api/?name=ConsultEASE&background=0070B8&color=fff" alt="AI Assistant" class="avatar-bot"><span class="ai-label">&#10024; Answered by AI</span>');
   $('#chat-history').append($b);
   scrollChatToBottom();
 }
 function aiMatchResponse(q) {
   const qLow = q.trim().toLowerCase();
   let best = null, bestScore = 0;
-  FAQS.forEach(faq => {
-      const sim = aiSimilarity(qLow, faq.q.toLowerCase());
-      if(sim > bestScore) { best = faq.a; bestScore = sim; }
+  // ensure keyword index exists
+  if(!window.__FAQ_KEYS) buildFaqKeywords();
+  FAQS.forEach((faq, idx) => {
+      const simQ = aiSimilarity(qLow, faq.q.toLowerCase());
+      // also try matching against the answer text (helps for paraphrases)
+      const simA = aiSimilarity(qLow, (faq.a||'').toLowerCase());
+      const score = Math.max(simQ, simA);
+      // keyword hit boost
+      const qTokens = qLow.split(/\s+/).filter(Boolean);
+      let kwHits = 0;
+      qTokens.forEach(t=>{ if(window.__FAQ_KEYS[idx].has(t)) kwHits++; });
+      const kwScore = Math.min(1, kwHits / Math.max(1, window.__FAQ_KEYS[idx].size)) * 0.35;
+      const finalScore = Math.min(1, score + kwScore);
+      console.debug('AI match candidate', { question: faq.q, score: finalScore.toFixed(3), base: score.toFixed(3), kwHits });
+      if(finalScore > bestScore){ best = faq.a; bestScore = finalScore; }
   });
-  return bestScore > 0.35 ? best : null;
+  // lower threshold so more helpful answers are provided; use keyword fallback if needed
+  if(bestScore > 0.18) return best;
+  // Keyword-only fallback: pick the faq with most keyword hits (if any)
+  let bestKw = null, bestKwHits = 0;
+  const qTokens = qLow.split(/\s+/).filter(Boolean);
+  FAQS.forEach((faq, idx)=>{
+    let hits = 0; qTokens.forEach(t=>{ if(window.__FAQ_KEYS[idx].has(t)) hits++; });
+    if(hits > bestKwHits){ bestKwHits = hits; bestKw = faq.a; }
+  });
+  if(bestKwHits > 0) return bestKw;
+  return null;
+}
+
+function buildFaqKeywords(){
+  window.__FAQ_KEYS = FAQS.map(faq=>{
+    const txt = ((faq.q||'') + ' ' + (faq.a||'')).replace(/[\W_]+/g,' ').toLowerCase();
+    const toks = txt.split(/\s+/).filter(t=>t.length>3);
+    return new Set(toks);
+  });
 }
 function aiSimilarity(a,b){
-  // crude: word overlap + partial match
-  const aWords = a.split(' '), bWords = b.split(' ');
-  let hits = 0;
-  aWords.forEach(w=>{if(b.includes(w)||bWords.some(bw=>bw.startsWith(w)||w.startsWith(bw)))hits++;});
-  return (hits / bWords.length/1.4) + (a.length>10&&b.length>10?a.length/b.length/10:0);
+  // improved: token set Jaccard + substring and bigram boosts
+  if(!a || !b) return 0;
+  const clean = s => s.replace(/[\W_]+/g,' ').trim().toLowerCase();
+  const ta = clean(a).split(/\s+/).filter(Boolean);
+  const tb = clean(b).split(/\s+/).filter(Boolean);
+  const sa = new Set(ta);
+  const sb = new Set(tb);
+  // jaccard
+  let inter = 0;
+  sa.forEach(w=>{ if(sb.has(w)) inter++; });
+  const union = new Set([...sa, ...sb]).size || 1;
+  let jaccard = inter / union;
+  // bigram overlap (captures phrase similarity)
+  const bigrams = arr => {
+    const out = new Set();
+    for(let i=0;i<arr.length-1;i++){ out.add(arr[i]+' '+arr[i+1]); }
+    return out;
+  };
+  const ba = bigrams(ta), bb = bigrams(tb);
+  let biInter = 0;
+  ba.forEach(g=>{ if(bb.has(g)) biInter++; });
+  const biUnion = new Set([...ba, ...bb]).size || 1;
+  const bigramScore = biInter / biUnion;
+  // substring boost
+  const substrBoost = (b.includes(a) || a.includes(b)) ? 0.25 : 0;
+  // length normalization factor to slightly favor longer informative matches
+  const lenFactor = Math.min(1, Math.max(0.6, Math.min(a.length,b.length) / Math.max(10, Math.max(a.length,b.length))));
+  const score = (jaccard * 0.6 + bigramScore * 0.35 + substrBoost) * lenFactor;
+  return Math.min(1, score);
 }
 function aiFallback() {
   return 'I couldn\'t find an exact answer, but our human support will reach out soon. Meanwhile, check FAQs below or email <a href="mailto:consultease@gmail.com">consultease@gmail.com</a>.';
