@@ -30,8 +30,23 @@ switch ($action) {
         ];
         $errors = AuthController::login($data);
         if ($errors) {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'errors' => $errors]);
+            // If this is an AJAX request or the client expects JSON, return JSON.
+            $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+            $acceptsJson = isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
+            if ($isAjax || $acceptsJson) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'errors' => $errors]);
+            } else {
+                // Non-AJAX form submission: redirect back to login page with friendly flags.
+                $general = $errors['general'] ?? '';
+                if (stripos($general, 'suspend') !== false || stripos($general, 'inactive') !== false) {
+                    header('Location: ' . BASE_URL . 'login.php?suspended=1');
+                } else {
+                    // Pass a short error code to the login page
+                    $msg = urlencode($general ?: 'Login failed');
+                    header('Location: ' . BASE_URL . 'login.php?error=' . $msg);
+                }
+            }
         } else {
             // Redirect by role
             $role = $_SESSION['role'];

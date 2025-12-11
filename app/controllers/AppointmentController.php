@@ -108,7 +108,24 @@ class AppointmentController {
         $stmt->execute([$consultant_id]);
         return $stmt->fetchAll();
     }
-    public static function getAllAppointments() {/*...*/}
+    public static function getAllAppointments() {
+        global $pdo;
+        $sql = "SELECT a.*, av.date AS date, av.start_time AS start_time, av.end_time AS end_time,
+            c.consultant_id, cu.name AS consultant_name, cu.email AS consultant_email,
+            cl.user_id AS client_user_id, cl.name AS client_name, cl.email AS client_email,
+            f.consultant_notes, f.client_notes, bp.description AS problem_description
+            FROM appointments a
+            JOIN availability av ON a.availability_id = av.availability_id
+            JOIN consultants c ON a.consultant_id = c.consultant_id
+            JOIN users cu ON c.user_id = cu.user_id
+            JOIN users cl ON a.client_id = cl.user_id
+            LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
+            LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
+            ORDER BY av.date DESC, av.start_time DESC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
     public static function submitProblem($data) {
         global $pdo;
         $stmt = $pdo->prepare("INSERT INTO business_problems (appointment_id, description) VALUES (?, ?)");

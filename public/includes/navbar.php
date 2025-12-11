@@ -24,10 +24,7 @@ secure_session_start();
         <?php elseif ($_SESSION['role'] === 'admin'): ?>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>admin/dashboard.php">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>admin/users.php">Users</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>admin/consultants.php">Consultants</a></li>
           <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>admin/appointments.php">Appointments</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>admin/expertise.php">Expertise</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= BASE_URL ?>admin/settings.php">Settings</a></li>
         <?php endif; ?>
         <li class="nav-item"><a class="nav-link btn btn-light btn-sm" href="<?= BASE_URL ?>api/auth.php?action=logout" style="margin-left:10px;">Logout</a></li>
       </ul>

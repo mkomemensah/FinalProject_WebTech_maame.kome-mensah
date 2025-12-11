@@ -38,6 +38,26 @@ body {
     border-radius: 12px;
 }
 
+/* Admin appointments improvements */
+.admin-card {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    border-radius: 14px;
+    padding: 1rem;
+    box-shadow: 0 10px 30px rgba(2,24,50,0.08);
+}
+.appointments-table thead th { background: #f7fbff; border-bottom: 0; color: #063154; }
+.appointments-table tbody tr { transition: background .15s ease, transform .08s ease; }
+.appointments-table tbody tr:hover { background: #f2f8ff; transform: translateY(-2px); }
+.status-badge { font-weight:700; padding: .4rem .6rem; border-radius: 10px; font-size:0.85rem; }
+.status-pending { background:#fff4e6; color:#a35b00; border:1px solid #ffd8a8; }
+.status-confirmed { background:#e6f6f1; color:#0a7a5b; border:1px solid #bff0da; }
+.status-completed { background:#eaf4ff; color:#055a8c; border:1px solid #cfeaff; }
+.status-cancelled { background:#ffeef0; color:#8b1e2d; border:1px solid #ffccd5; }
+.btn-small { padding:.35rem .6rem; font-size:.85rem; border-radius:8px; }
+.appt-meta { color:#385a6b; font-size:0.95rem; }
+.modal .modal-body dl dt { font-weight:700; color:#063154; }
+.modal .modal-body dl dd { color:#334e59; }
+
 footer {
     margin-top: 3rem;
     background: #efefef;

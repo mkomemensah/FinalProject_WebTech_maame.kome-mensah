@@ -15,6 +15,16 @@
   </nav>
   <div class="container d-flex align-items-center justify-content-center" style="min-height:70vh; position:relative; z-index:2;">
     <div class="card p-4 shadow" style="min-width:370px;">
+      <?php if(isset($_GET['suspended'])): ?>
+        <div class="alert alert-warning" role="alert">
+          <h5 class="alert-heading">Account Suspended</h5>
+          <p>Your account has been suspended by an administrator. You will not be able to sign in until your account is re-activated.</p>
+          <hr>
+          <div class="d-flex justify-content-end">
+            <a href="<?= BASE_URL ?>" class="btn btn-outline-primary">Back to Home</a>
+          </div>
+        </div>
+      <?php endif; ?>
       <h3 class="mb-3 text-center">Sign In</h3>
       <form id="loginForm" action="<?= BASE_URL ?>api/auth.php?action=login" method="post" novalidate autocomplete="off">
         <div class="mb-3">
