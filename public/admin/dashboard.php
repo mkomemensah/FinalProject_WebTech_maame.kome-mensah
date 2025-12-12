@@ -81,10 +81,6 @@ body {background:linear-gradient(120deg,#b0e0ef 0%,#dbcef6 100%);min-height:100v
           </div>
           <div class="col-md-4 text-md-end mt-3 mt-md-0">
             <a href="audit.php" class="btn btn-primary px-4 py-2">View Logs</a>
-            <div class="mt-2 d-inline-block">
-              <a href="integrity.php" class="btn btn-outline-secondary btn-sm">Data Integrity</a>
-              <a href="settings.php" class="btn btn-outline-secondary btn-sm">Settings</a>
-            </div>
           </div>
         </div>
       </div>
