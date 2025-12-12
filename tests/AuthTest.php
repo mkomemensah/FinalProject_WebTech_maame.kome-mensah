@@ -1,9 +1,8 @@
 <?php
-use PHPUnit\Framework\TestCase;
-
 require_once __DIR__ . '/../app/controllers/AuthController.php';
 
-class AuthTest extends TestCase {
+class AuthTest {
+
     public function testRegisterRejectsWeakPassword() {
         $errors = AuthController::register([
             'name' => 'Test User',
@@ -12,8 +11,20 @@ class AuthTest extends TestCase {
             'password' => 'weak',
             'role' => 'client'
         ]);
-        $this->assertArrayHasKey('password', $errors);
+
+        // Check that 'password' key exists in errors
+        assertTrue(isset($errors['password']), "Weak password should be rejected");
     }
 
-    // Add more: valid registration, login success/failure, etc.
+    public function testRegisterAcceptsStrongPassword() {
+        $errors = AuthController::register([
+            'name' => 'Strong User',
+            'email' => 'strong@example.com',
+            'phone' => '0500000001',
+            'password' => 'Strong!1234',
+            'role' => 'client'
+        ]);
+
+        assertTrue(empty($errors), "Strong password should pass registration");
+    }
 }

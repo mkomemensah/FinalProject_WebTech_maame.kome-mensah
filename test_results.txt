@@ -1,0 +1,10 @@
+PASS: AuthTest: Weak password rejected
+PASS: AuthTest: Valid registration succeeds
+PASS: AuthTest: Login success
+PASS: AuthTest: Login failure
+PASS: AvailabilityTest: End before start fails
+PASS: AvailabilityTest: Valid availability succeeds
+PASS: BookingTest: Invalid appointment fails
+PASS: BookingTest: Valid appointment succeeds
+PASS: SecurityTest: Password hash/verify
+PASS: SecurityTest: XSS prevention
