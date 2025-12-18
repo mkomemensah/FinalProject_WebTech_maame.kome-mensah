@@ -249,7 +249,6 @@ $(document).on('submit', '#feedback-form', function(e) {
             } catch (e) {}
             $('#fb-success').html("<div class='alert alert-danger'>" + errorMsg + "</div>").show();
             $submitBtn.prop('disabled', false).html(originalBtnText);
-            $submitBtn.prop('disabled', false).html(originalBtnText);
         }
     });
 });
