@@ -331,32 +331,70 @@ class AppointmentController {
             // Use COALESCE to handle potentially missing client_notes column gracefully
             // This query returns ALL appointments regardless of status (pending, confirmed, completed, cancelled)
             // Using LEFT JOIN for availability and users to ensure we get all appointments even if related records are missing
-            $sql = "SELECT a.*, 
-                           COALESCE(av.date, '') AS date, 
-                           COALESCE(av.start_time, '') AS start_time, 
-                           COALESCE(av.end_time, '') AS end_time, 
-                           COALESCE(u.user_id, a.client_id) AS client_user_id, 
-                           COALESCE(u.name, 'Unknown Client') AS client_name, 
-                           COALESCE(u.email, '') AS client_email,
-                           COALESCE(f.consultant_notes, '') AS consultant_notes, 
-                           COALESCE(f.client_notes, '') AS client_notes, 
-                           COALESCE(bp.description, '') AS business_problem
-                    FROM appointments a
-                    LEFT JOIN availability av ON a.availability_id = av.availability_id
-                    LEFT JOIN users u ON a.client_id = u.user_id
-                    LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
-                    LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
-                    WHERE a.consultant_id = ?
-                    ORDER BY 
-                      CASE a.status 
-                        WHEN 'pending' THEN 1 
-                        WHEN 'confirmed' THEN 2 
-                        WHEN 'completed' THEN 3 
-                        WHEN 'cancelled' THEN 4 
-                        ELSE 5 
-                      END,
-                      COALESCE(av.date, '1970-01-01') DESC, 
-                      COALESCE(av.start_time, '00:00:00') DESC";
+            // Note: business_problems table might not exist, so we check for it first
+            try {
+                // Check if business_problems table exists
+                $tableCheck = $pdo->query("SHOW TABLES LIKE 'business_problems'")->fetch();
+                $hasBusinessProblems = $tableCheck !== false;
+            } catch (Exception $e) {
+                $hasBusinessProblems = false;
+            }
+            
+            if ($hasBusinessProblems) {
+                $sql = "SELECT a.*, 
+                               COALESCE(av.date, '') AS date, 
+                               COALESCE(av.start_time, '') AS start_time, 
+                               COALESCE(av.end_time, '') AS end_time, 
+                               COALESCE(u.user_id, a.client_id) AS client_user_id, 
+                               COALESCE(u.name, 'Unknown Client') AS client_name, 
+                               COALESCE(u.email, '') AS client_email,
+                               COALESCE(f.consultant_notes, '') AS consultant_notes, 
+                               COALESCE(f.client_notes, '') AS client_notes, 
+                               COALESCE(bp.description, '') AS business_problem
+                        FROM appointments a
+                        LEFT JOIN availability av ON a.availability_id = av.availability_id
+                        LEFT JOIN users u ON a.client_id = u.user_id
+                        LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
+                        LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
+                        WHERE a.consultant_id = ?
+                        ORDER BY 
+                          CASE a.status 
+                            WHEN 'pending' THEN 1 
+                            WHEN 'confirmed' THEN 2 
+                            WHEN 'completed' THEN 3 
+                            WHEN 'cancelled' THEN 4 
+                            ELSE 5 
+                          END,
+                          COALESCE(av.date, '1970-01-01') DESC, 
+                          COALESCE(av.start_time, '00:00:00') DESC";
+            } else {
+                // business_problems table doesn't exist, use query without it
+                $sql = "SELECT a.*, 
+                               COALESCE(av.date, '') AS date, 
+                               COALESCE(av.start_time, '') AS start_time, 
+                               COALESCE(av.end_time, '') AS end_time, 
+                               COALESCE(u.user_id, a.client_id) AS client_user_id, 
+                               COALESCE(u.name, 'Unknown Client') AS client_name, 
+                               COALESCE(u.email, '') AS client_email,
+                               COALESCE(f.consultant_notes, '') AS consultant_notes, 
+                               COALESCE(f.client_notes, '') AS client_notes, 
+                               '' AS business_problem
+                        FROM appointments a
+                        LEFT JOIN availability av ON a.availability_id = av.availability_id
+                        LEFT JOIN users u ON a.client_id = u.user_id
+                        LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
+                        WHERE a.consultant_id = ?
+                        ORDER BY 
+                          CASE a.status 
+                            WHEN 'pending' THEN 1 
+                            WHEN 'confirmed' THEN 2 
+                            WHEN 'completed' THEN 3 
+                            WHEN 'cancelled' THEN 4 
+                            ELSE 5 
+                          END,
+                          COALESCE(av.date, '1970-01-01') DESC, 
+                          COALESCE(av.start_time, '00:00:00') DESC";
+            }
             
             error_log("Executing SQL for consultant_id: " . $consultant_id);
             error_log("Full SQL query: " . $sql);

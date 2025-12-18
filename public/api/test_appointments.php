@@ -58,7 +58,7 @@ if ($consultant_id) {
     $withClient = $stmt->fetchColumn();
     $debug['appointments_with_client'] = $withClient;
     
-    // Try the actual query
+    // Try the actual query (without business_problems since table might not exist)
     $sql = "SELECT a.*, 
                    COALESCE(av.date, '') AS date, 
                    COALESCE(av.start_time, '') AS start_time, 
@@ -67,13 +67,12 @@ if ($consultant_id) {
                    COALESCE(u.name, 'Unknown Client') AS client_name, 
                    COALESCE(u.email, '') AS client_email,
                    COALESCE(f.consultant_notes, '') AS consultant_notes, 
-                   COALESCE(f.client_notes, '') AS client_notes, 
-                   COALESCE(bp.description, '') AS business_problem
+                   COALESCE(f.client_notes, '') AS client_notes,
+                   '' AS business_problem
             FROM appointments a
             LEFT JOIN availability av ON a.availability_id = av.availability_id
             LEFT JOIN users u ON a.client_id = u.user_id
             LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
-            LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
             WHERE a.consultant_id = ?
             ORDER BY 
               CASE a.status 
@@ -86,9 +85,14 @@ if ($consultant_id) {
               COALESCE(av.date, '1970-01-01') DESC, 
               COALESCE(av.start_time, '00:00:00') DESC";
     
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$consultant_id]);
-    $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$consultant_id]);
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        $debug['query_error'] = $e->getMessage();
+        $result = [];
+    }
     $debug['query_result_count'] = count($result);
     $debug['query_result_sample'] = count($result) > 0 ? $result[0] : null;
 } else {
