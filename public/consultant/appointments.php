@@ -130,53 +130,67 @@ function fetchAppointments() {
         });
       }
       $('#appt-list').html(html);
-    // Feedback and Details event handlers w/ icon buttons
-    // Feedback button click handler with error handling
-    $('#appt-list').on('click', '.feedback-btn', function(){
-        const $btn = $(this);
-        const $card = $btn.closest('.appt-card');
-        const idx = $card.parent().index();
-        
-        // Show loading state
-        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...');
-        
-        $.getJSON('../api/appointments.php?action=list')
-            .done(function(appts2) {
-                const a = appts2[idx];
-                if (!a) {
-                    console.error('Appointment not found at index', idx);
-                    return;
-                }
-                
-                $('#fb-appointment-id').val(a.appointment_id);
-                $('#fb-consultant-notes').val(a.consultant_notes || '');
-                $('#fb-success').hide();
-                
-                // Initialize and show the modal
-                const feedbackModal = new bootstrap.Modal(document.getElementById('feedback-modal'));
-                feedbackModal.show();
-            })
-            .fail(function(jqXHR, textStatus, errorThrown) {
-                console.error('Error loading appointment details:', textStatus, errorThrown);
-                alert('Failed to load appointment details. Please try again.');
-            })
-            .always(function() {
-                $btn.prop('disabled', false).html('<i class="bi bi-chat-left-text"></i> Give Feedback');
-            });
-    });
-    $('#appt-list .view-details').off('click').on('click', function(){
-      const idx = $(this).closest('.appt-card').parent().index();
-      $.getJSON('../api/appointments.php?action=list', (appts2)=>{
+      
+      // Set up event handlers after the HTML is inserted
+      setupEventHandlers(appts);
+    },
+    error: function(xhr, status, error) {
+      console.error('Error fetching appointments:', status, error);
+      $('#appt-list').html(`<div class='col-12'><div class='alert alert-danger'>Error loading appointments: ${error || 'Unknown error'}</div></div>`);
+    }
+  });
+}
+
+function setupEventHandlers(appts) {
+  // Feedback button click handler with error handling
+  $('#appt-list').off('click', '.feedback-btn').on('click', '.feedback-btn', function(){
+    const $btn = $(this);
+    const $card = $btn.closest('.appt-card');
+    const idx = $card.parent().index();
+    
+    // Show loading state
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...');
+    
+    $.getJSON('../api/appointments.php?action=list')
+      .done(function(appts2) {
         const a = appts2[idx];
-        const modalContent = '<b>Client:</b> ' + (a.client_name || 'N/A') + 
-                          '<br><b>Email:</b> ' + (a.client_email || '-') + 
-                          '<br><b>Date:</b> ' + (a.date || 'N/A') + 
-                          '<br><b>Time:</b> ' + (a.start_time || '') + ' - ' + (a.end_time || '') + 
-                          '<br><b>Business Problem:</b><br>' + (a.business_problem || '-');
-        $('#detailsModalBody').html(modalContent);
-        $('#detailsModal').modal('show');
+        if (!a) {
+          console.error('Appointment not found at index', idx);
+          return;
+        }
+        
+        $('#fb-appointment-id').val(a.appointment_id);
+        $('#fb-consultant-notes').val(a.consultant_notes || '');
+        $('#fb-success').hide();
+        
+        // Initialize and show the modal
+        const feedbackModal = new bootstrap.Modal(document.getElementById('feedback-modal'));
+        feedbackModal.show();
+      })
+      .fail(function(jqXHR, textStatus, errorThrown) {
+        console.error('Error loading appointment details:', textStatus, errorThrown);
+        alert('Failed to load appointment details. Please try again.');
+      })
+      .always(function() {
+        $btn.prop('disabled', false).html('<i class="bi bi-chat-left-text"></i> Give Feedback');
       });
-    });
+  });
+  
+  // View details button handler
+  $('#appt-list').off('click', '.view-details').on('click', '.view-details', function(){
+    const c = $(this).data('client'),
+          e = $(this).data('email'),
+          d = $(this).data('date'),
+          t = $(this).data('time'),
+          p = $(this).data('problem');
+          
+    const modalContent = '<b>Client:</b> ' + (c || 'N/A') + 
+                        '<br><b>Email:</b> ' + (e || '-') + 
+                        '<br><b>Date:</b> ' + (d || 'N/A') + 
+                        '<br><b>Time:</b> ' + (t || '') + 
+                        '<br><b>Business Problem:</b><br>' + (p || '-');
+    $('#detailsModalBody').html(modalContent);
+    $('#detailsModal').modal('show');
   });
 }
 $(document).ready(function() {
