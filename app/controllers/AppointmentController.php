@@ -308,28 +308,41 @@ class AppointmentController {
         error_log("Getting appointments for consultant ID: " . $consultant_id);
         
         try {
-            $sql = "SELECT a.*, av.date AS date, av.start_time AS start_time, av.end_time AS end_time, 
-                           u.user_id AS client_user_id, u.name AS client_name, u.email AS client_email,
-                           f.consultant_notes, f.client_notes, bp.description AS business_problem
+            // First, check if consultant_id is valid
+            if (empty($consultant_id)) {
+                error_log("Empty consultant_id provided");
+                return [];
+            }
+            
+            // Use COALESCE to handle potentially missing client_notes column gracefully
+            $sql = "SELECT a.*, 
+                           av.date AS date, 
+                           av.start_time AS start_time, 
+                           av.end_time AS end_time, 
+                           u.user_id AS client_user_id, 
+                           u.name AS client_name, 
+                           u.email AS client_email,
+                           COALESCE(f.consultant_notes, '') AS consultant_notes, 
+                           COALESCE(f.client_notes, '') AS client_notes, 
+                           COALESCE(bp.description, '') AS business_problem
                     FROM appointments a
                     JOIN availability av ON a.availability_id = av.availability_id
                     JOIN users u ON a.client_id = u.user_id
-                    JOIN consultants co ON a.consultant_id = co.consultant_id
                     LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
                     LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
                     WHERE a.consultant_id = ?
                     ORDER BY av.date DESC, av.start_time DESC";
             
-            error_log("Executing SQL: " . $sql);
+            error_log("Executing SQL for consultant_id: " . $consultant_id);
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$consultant_id]);
             
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            error_log("Found " . count($result) . " appointments");
+            error_log("Found " . count($result) . " appointments for consultant ID: " . $consultant_id);
             
             // Log the first appointment if any
             if (count($result) > 0) {
-                error_log("First appointment: " . print_r($result[0], true));
+                error_log("First appointment data: " . json_encode($result[0]));
             } else {
                 error_log("No appointments found for consultant ID: " . $consultant_id);
             }
@@ -338,9 +351,11 @@ class AppointmentController {
         } catch (PDOException $e) {
             error_log("Database error in getConsultantAppointments: " . $e->getMessage());
             error_log("SQL Error Info: " . print_r($pdo->errorInfo(), true));
+            error_log("Stack trace: " . $e->getTraceAsString());
             return [];
         } catch (Exception $e) {
             error_log("Error in getConsultantAppointments: " . $e->getMessage());
+            error_log("Stack trace: " . $e->getTraceAsString());
             return [];
         }
     }

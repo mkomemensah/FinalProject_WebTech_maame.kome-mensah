@@ -96,13 +96,24 @@ function fetchAppointments() {
   $.ajax({
     url: '../api/appointments.php?action=list',
     dataType: 'json',
-    success: function(appts) {
-      console.log('Appointments API response:', appts);
+    success: function(response) {
+      console.log('Appointments API response:', response);
       let html = '';
+      
+      // Check if response is an error object
+      if (response && response.error) {
+        console.error('API returned error:', response.error);
+        html = `<div class='col-12'><div class='alert alert-danger'>Error: ${response.error}</div></div>`;
+        $('#appt-list').html(html);
+        return;
+      }
+      
+      // Treat response as appointments array
+      const appts = response;
       
       if (!appts || !Array.isArray(appts)) {
         console.error('Invalid appointments data received:', appts);
-        html = `<div class='col-12'><div class='alert alert-danger'>Error loading appointments. Please try again later.</div></div>`;
+        html = `<div class='col-12'><div class='alert alert-danger'>Error loading appointments. Invalid data format received.</div></div>`;
       } else if (appts.length === 0) {
         console.log('No appointments found');
         html = `<div class='col-12'><div class='text-center py-5'><img src='https://cdn-icons-png.flaticon.com/512/4076/4076549.png' alt='No Appointments' width='80' class='mb-2'/><h5 class='text-secondary'>No appointments found</h5></div></div>`;
@@ -124,7 +135,7 @@ function fetchAppointments() {
           } else if (a.status === 'completed') {
             actionBtns = `<button class='btn btn-brand feedback btn-sm feedback-btn me-2' data-appointment-id='${a.appointment_id}'><i class="bi bi-chat-left-text"></i> Give Feedback</button>`;
           }
-          let detailsBtn = `<button class='btn btn-brand details btn-sm view-details' data-client='${a.client_name||''}' data-email='${a.client_email||''}' data-date='${a.date}' data-time='${a.start_time} - ${a.end_time}' data-problem='${a.business_problem||'No details available'}'><i class="bi bi-info-circle"></i> Details</button>`;
+          let detailsBtn = `<button class='btn btn-brand details btn-sm view-details' data-client='${(a.client_name||'').replace(/'/g, "\\'")}' data-email='${(a.client_email||'').replace(/'/g, "\\'")}' data-date='${a.date||''}' data-time='${a.start_time||''} - ${a.end_time||''}' data-problem='${(a.business_problem||'No details available').replace(/'/g, "\\'")}'><i class="bi bi-info-circle"></i> Details</button>`;
           
           html += `<div class='col-md-6 col-lg-4'><div class='appt-card card h-100 shadow-sm p-3'>
             <div class='d-flex align-items-center mb-3'>
@@ -144,7 +155,15 @@ function fetchAppointments() {
     },
     error: function(xhr, status, error) {
       console.error('Error fetching appointments:', status, error);
-      $('#appt-list').html(`<div class='col-12'><div class='alert alert-danger'>Error loading appointments: ${error || 'Unknown error'}</div></div>`);
+      console.error('Response text:', xhr.responseText);
+      let errorMsg = 'Unknown error';
+      try {
+        const response = JSON.parse(xhr.responseText);
+        errorMsg = response.error || error || 'Failed to load appointments';
+      } catch (e) {
+        errorMsg = error || 'Failed to load appointments. Please check your connection.';
+      }
+      $('#appt-list').html(`<div class='col-12'><div class='alert alert-danger'>Error loading appointments: ${errorMsg}</div></div>`);
     }
   });
 }

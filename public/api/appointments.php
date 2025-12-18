@@ -37,35 +37,50 @@ switch ($action) {
 
     // When we need to fetch a list of appointments
     case 'list':
-        // Different users see different appointment lists
-        if ($_SESSION['role'] === 'client') {
-            // Clients see their own upcoming appointments
-            $appointments = AppointmentController::getClientAppointments($_SESSION['user_id']);
-        } elseif ($_SESSION['role'] === 'consultant') {
-            // For consultants, we need to auto-complete any past sessions first
-            global $pdo;
-            
-            // Find out which consultant this user is
-            $stmt = $pdo->prepare("SELECT consultant_id FROM consultants WHERE user_id = ?");
-            $stmt->execute([$_SESSION['user_id']]);
-            $row = $stmt->fetch();
-            $consultant_id = $row ? $row['consultant_id'] : null;
-            
-            // If we found the consultant, update any sessions that should be marked as complete
-            if ($consultant_id) {
-                AppointmentController::autoCompleteSessions($consultant_id);
-                $appointments = AppointmentController::getConsultantAppointments($consultant_id);
+        try {
+            // Different users see different appointment lists
+            if ($_SESSION['role'] === 'client') {
+                // Clients see their own upcoming appointments
+                $appointments = AppointmentController::getClientAppointments($_SESSION['user_id']);
+            } elseif ($_SESSION['role'] === 'consultant') {
+                // For consultants, we need to auto-complete any past sessions first
+                global $pdo;
+                
+                // Find out which consultant this user is
+                $stmt = $pdo->prepare("SELECT consultant_id FROM consultants WHERE user_id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                $row = $stmt->fetch();
+                $consultant_id = $row ? $row['consultant_id'] : null;
+                
+                // If we found the consultant, update any sessions that should be marked as complete
+                if ($consultant_id) {
+                    AppointmentController::autoCompleteSessions($consultant_id);
+                    $appointments = AppointmentController::getConsultantAppointments($consultant_id);
+                } else {
+                    error_log("No consultant_id found for user_id: " . $_SESSION['user_id']);
+                    $appointments = [];
+                }
+            } elseif ($_SESSION['role'] === 'admin') {
+                AppointmentController::autoCompleteSessions(); // global auto-mark
+                $appointments = AppointmentController::getAllAppointments();
             } else {
                 $appointments = [];
             }
-        } elseif ($_SESSION['role'] === 'admin') {
-            AppointmentController::autoCompleteSessions(); // global auto-mark
-            $appointments = AppointmentController::getAllAppointments();
-        } else {
-            $appointments = [];
+            
+            // Ensure appointments is always an array
+            if (!is_array($appointments)) {
+                error_log("Appointments is not an array: " . gettype($appointments));
+                $appointments = [];
+            }
+            
+            header('Content-Type: application/json');
+            echo json_encode($appointments);
+        } catch (Exception $e) {
+            error_log("Error in appointments list API: " . $e->getMessage());
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to fetch appointments: ' . $e->getMessage()]);
         }
-        header('Content-Type: application/json');
-        echo json_encode($appointments);
         break;
     // Consultant accepting an appointment
     case 'accept':
