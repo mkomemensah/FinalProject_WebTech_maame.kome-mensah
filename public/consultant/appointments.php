@@ -247,7 +247,8 @@ $(document).on('submit', '#feedback-form', function(e) {
                 const response = JSON.parse(xhr.responseText);
                 errorMsg = response.error || errorMsg;
             } catch (e) {}
-            $('#fb-success').html("<div class='alert alert-danger">" + errorMsg + "</div>").show();
+            $('#fb-success').html("<div class='alert alert-danger'>" + errorMsg + "</div>").show();
+            $submitBtn.prop('disabled', false).html(originalBtnText);
             $submitBtn.prop('disabled', false).html(originalBtnText);
         }
     });
