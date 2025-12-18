@@ -3,8 +3,7 @@ require_once __DIR__ . '/../../app/middleware/auth_middleware.php';
 require_once __DIR__ . '/../includes/navbar.php';
 require_once __DIR__ . '/../../app/middleware/role_middleware.php';
 require_role('consultant');
-?>
-<!DOCTYPE html>
+?><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -112,9 +111,18 @@ function fetchAppointments() {
         appts.forEach(function(a, index) {
           console.log('Appointment', index, ':', a);
           let badgeClass = getStatusBadge(a.status);
-          let feedbackBtn = '';
-          if(a.status === 'completed') {
-            feedbackBtn = `<button class='btn btn-brand feedback btn-sm feedback-btn me-2' data-appointment-id='${a.appointment_id}'><i class="bi bi-chat-left-text"></i> Give Feedback</button>`;
+          let actionBtns = '';
+          if (a.status === 'pending') {
+            actionBtns = `
+              <button class='btn btn-success btn-sm accept-appointment me-2' data-appointment-id='${a.appointment_id}'>
+                <i class='bi bi-check-circle'></i> Accept
+              </button>
+              <button class='btn btn-outline-danger btn-sm reject-appointment me-2' data-appointment-id='${a.appointment_id}'>
+                <i class='bi bi-x-circle'></i> Reject
+              </button>
+            `;
+          } else if (a.status === 'completed') {
+            actionBtns = `<button class='btn btn-brand feedback btn-sm feedback-btn me-2' data-appointment-id='${a.appointment_id}'><i class="bi bi-chat-left-text"></i> Give Feedback</button>`;
           }
           let detailsBtn = `<button class='btn btn-brand details btn-sm view-details' data-client='${a.client_name||''}' data-email='${a.client_email||''}' data-date='${a.date}' data-time='${a.start_time} - ${a.end_time}' data-problem='${a.business_problem||'No details available'}'><i class="bi bi-info-circle"></i> Details</button>`;
           
@@ -125,7 +133,7 @@ function fetchAppointments() {
             </div>
             <div class='mb-2'><b>Date:</b> ${a.date || 'N/A'}&nbsp;&nbsp;<b>Time:</b> ${a.start_time || ''} - ${a.end_time || ''}</div>
             <div class='mb-2'><span class='${badgeClass}'>${a.status ? a.status.charAt(0).toUpperCase() + a.status.slice(1) : 'Unknown Status'}</span></div>
-            <div>${feedbackBtn}${detailsBtn}</div>
+            <div class='d-flex flex-wrap align-items-center'>${actionBtns}${detailsBtn}</div>
           </div></div>`;
         });
       }
@@ -142,6 +150,68 @@ function fetchAppointments() {
 }
 
 function setupEventHandlers(appts) {
+  // Handle accept appointment
+  $('#appt-list').off('click', '.accept-appointment').on('click', '.accept-appointment', function(){
+    const $btn = $(this);
+    const appointmentId = $btn.data('appointment-id');
+    
+    // Show loading state
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Accepting...');
+    
+    // Send accept request
+    $.ajax({
+      url: '../api/appointments.php?action=accept',
+      type: 'POST',
+      data: { appointment_id: appointmentId },
+      dataType: 'json',
+      success: function(response) {
+        if (response.success) {
+          // Refresh the appointments list
+          fetchAppointments();
+        } else {
+          alert(response.error || 'Failed to accept appointment');
+          $btn.prop('disabled', false).html('<i class="bi bi-check-circle"></i> Accept');
+        }
+      },
+      error: function() {
+        alert('An error occurred while processing your request');
+        $btn.prop('disabled', false).html('<i class="bi bi-check-circle"></i> Accept');
+      }
+    });
+  });
+  
+  // Handle reject appointment
+  $('#appt-list').off('click', '.reject-appointment').on('click', '.reject-appointment', function(){
+    if (!confirm('Are you sure you want to reject this appointment?')) return;
+    
+    const $btn = $(this);
+    const appointmentId = $btn.data('appointment-id');
+    
+    // Show loading state
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Rejecting...');
+    
+    // Send reject request
+    $.ajax({
+      url: '../api/appointments.php?action=reject',
+      type: 'POST',
+      data: { appointment_id: appointmentId },
+      dataType: 'json',
+      success: function(response) {
+        if (response.success) {
+          // Refresh the appointments list
+          fetchAppointments();
+        } else {
+          alert(response.error || 'Failed to reject appointment');
+          $btn.prop('disabled', false).html('<i class="bi bi-x-circle"></i> Reject');
+        }
+      },
+      error: function() {
+        alert('An error occurred while processing your request');
+        $btn.prop('disabled', false).html('<i class="bi bi-x-circle"></i> Reject');
+      }
+    });
+  });
+  
   // Feedback button click handler with error handling
   $('#appt-list').off('click', '.feedback-btn').on('click', '.feedback-btn', function(){
     const $btn = $(this);
