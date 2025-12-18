@@ -330,20 +330,20 @@ class AppointmentController {
             
             // Use COALESCE to handle potentially missing client_notes column gracefully
             // This query returns ALL appointments regardless of status (pending, confirmed, completed, cancelled)
-            // Using LEFT JOIN for availability in case some appointments don't have availability records
+            // Using LEFT JOIN for availability and users to ensure we get all appointments even if related records are missing
             $sql = "SELECT a.*, 
                            COALESCE(av.date, '') AS date, 
                            COALESCE(av.start_time, '') AS start_time, 
                            COALESCE(av.end_time, '') AS end_time, 
-                           u.user_id AS client_user_id, 
-                           u.name AS client_name, 
-                           u.email AS client_email,
+                           COALESCE(u.user_id, a.client_id) AS client_user_id, 
+                           COALESCE(u.name, 'Unknown Client') AS client_name, 
+                           COALESCE(u.email, '') AS client_email,
                            COALESCE(f.consultant_notes, '') AS consultant_notes, 
                            COALESCE(f.client_notes, '') AS client_notes, 
                            COALESCE(bp.description, '') AS business_problem
                     FROM appointments a
                     LEFT JOIN availability av ON a.availability_id = av.availability_id
-                    INNER JOIN users u ON a.client_id = u.user_id
+                    LEFT JOIN users u ON a.client_id = u.user_id
                     LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
                     LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
                     WHERE a.consultant_id = ?

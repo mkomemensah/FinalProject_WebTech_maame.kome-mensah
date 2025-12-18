@@ -58,15 +58,45 @@ switch ($action) {
                 
                 // If we found the consultant, update any sessions that should be marked as complete
                 if ($consultant_id) {
-                    // Check how many appointments exist directly in database
+                    // Check how many appointments exist directly in database (all statuses)
                     $checkStmt = $pdo->prepare("SELECT COUNT(*) as total FROM appointments WHERE consultant_id = ?");
                     $checkStmt->execute([$consultant_id]);
                     $totalCount = $checkStmt->fetchColumn();
                     error_log("Direct appointment count for consultant_id $consultant_id: $totalCount");
                     
+                    // Check appointments by status
+                    $statusStmt = $pdo->prepare("SELECT status, COUNT(*) as count FROM appointments WHERE consultant_id = ? GROUP BY status");
+                    $statusStmt->execute([$consultant_id]);
+                    $statusCounts = $statusStmt->fetchAll(PDO::FETCH_ASSOC);
+                    error_log("Appointments by status for consultant_id $consultant_id: " . json_encode($statusCounts));
+                    
+                    // Check if appointments have availability records
+                    $availStmt = $pdo->prepare("SELECT COUNT(*) as total FROM appointments a LEFT JOIN availability av ON a.availability_id = av.availability_id WHERE a.consultant_id = ?");
+                    $availStmt->execute([$consultant_id]);
+                    $withAvail = $availStmt->fetchColumn();
+                    error_log("Appointments with availability records: $withAvail");
+                    
+                    // Check appointments without availability
+                    $noAvailStmt = $pdo->prepare("SELECT a.appointment_id, a.status, a.availability_id FROM appointments a LEFT JOIN availability av ON a.availability_id = av.availability_id WHERE a.consultant_id = ? AND av.availability_id IS NULL");
+                    $noAvailStmt->execute([$consultant_id]);
+                    $noAvail = $noAvailStmt->fetchAll(PDO::FETCH_ASSOC);
+                    if (count($noAvail) > 0) {
+                        error_log("Appointments WITHOUT availability records: " . json_encode($noAvail));
+                    }
+                    
                     AppointmentController::autoCompleteSessions($consultant_id);
                     $appointments = AppointmentController::getConsultantAppointments($consultant_id);
                     error_log("getConsultantAppointments returned " . count($appointments) . " appointments");
+                    
+                    // If we got 0 appointments but there are appointments in DB, something is wrong with the query
+                    if (count($appointments) == 0 && $totalCount > 0) {
+                        error_log("WARNING: Query returned 0 appointments but database has $totalCount appointments!");
+                        // Try a simpler query to see what's wrong
+                        $simpleStmt = $pdo->prepare("SELECT a.*, av.date, av.start_time, av.end_time FROM appointments a LEFT JOIN availability av ON a.availability_id = av.availability_id WHERE a.consultant_id = ? LIMIT 5");
+                        $simpleStmt->execute([$consultant_id]);
+                        $simpleResults = $simpleStmt->fetchAll(PDO::FETCH_ASSOC);
+                        error_log("Simple query result (first 5): " . json_encode($simpleResults));
+                    }
                 } else {
                     error_log("No consultant_id found for user_id: " . $_SESSION['user_id']);
                     // Check if user exists in consultants table at all
