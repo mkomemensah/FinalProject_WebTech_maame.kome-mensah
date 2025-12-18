@@ -46,18 +46,34 @@ switch ($action) {
                 // For consultants, we need to auto-complete any past sessions first
                 global $pdo;
                 
+                error_log("Consultant appointments API called. User ID: " . ($_SESSION['user_id'] ?? 'not set'));
+                
                 // Find out which consultant this user is
                 $stmt = $pdo->prepare("SELECT consultant_id FROM consultants WHERE user_id = ?");
                 $stmt->execute([$_SESSION['user_id']]);
                 $row = $stmt->fetch();
                 $consultant_id = $row ? $row['consultant_id'] : null;
                 
+                error_log("Consultant lookup - user_id: " . $_SESSION['user_id'] . ", consultant_id: " . ($consultant_id ?? 'null'));
+                
                 // If we found the consultant, update any sessions that should be marked as complete
                 if ($consultant_id) {
+                    // Check how many appointments exist directly in database
+                    $checkStmt = $pdo->prepare("SELECT COUNT(*) as total FROM appointments WHERE consultant_id = ?");
+                    $checkStmt->execute([$consultant_id]);
+                    $totalCount = $checkStmt->fetchColumn();
+                    error_log("Direct appointment count for consultant_id $consultant_id: $totalCount");
+                    
                     AppointmentController::autoCompleteSessions($consultant_id);
                     $appointments = AppointmentController::getConsultantAppointments($consultant_id);
+                    error_log("getConsultantAppointments returned " . count($appointments) . " appointments");
                 } else {
                     error_log("No consultant_id found for user_id: " . $_SESSION['user_id']);
+                    // Check if user exists in consultants table at all
+                    $checkStmt = $pdo->prepare("SELECT * FROM consultants WHERE user_id = ?");
+                    $checkStmt->execute([$_SESSION['user_id']]);
+                    $allRows = $checkStmt->fetchAll();
+                    error_log("Consultants table check for user_id " . $_SESSION['user_id'] . ": " . json_encode($allRows));
                     $appointments = [];
                 }
             } elseif ($_SESSION['role'] === 'admin') {
@@ -71,6 +87,12 @@ switch ($action) {
             if (!is_array($appointments)) {
                 error_log("Appointments is not an array: " . gettype($appointments));
                 $appointments = [];
+            }
+            
+            // Log final result before sending
+            error_log("Final appointments count being sent: " . count($appointments));
+            if (count($appointments) > 0) {
+                error_log("First appointment in response: " . json_encode($appointments[0]));
             }
             
             header('Content-Type: application/json');

@@ -93,11 +93,17 @@ function getStatusBadge(status) {
 }
 function fetchAppointments() {
   console.log('Fetching appointments...');
+  console.log('Current session user_id:', '<?php echo $_SESSION["user_id"] ?? "not set"; ?>');
+  console.log('Current session role:', '<?php echo $_SESSION["role"] ?? "not set"; ?>');
   $.ajax({
     url: '../api/appointments.php?action=list',
     dataType: 'json',
     success: function(response) {
       console.log('Appointments API response:', response);
+      console.log('Response type:', typeof response);
+      console.log('Is array?', Array.isArray(response));
+      console.log('Response length:', response ? response.length : 'null/undefined');
+      
       let html = '';
       
       // Check if response is an error object

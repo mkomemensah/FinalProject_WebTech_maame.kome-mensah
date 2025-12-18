@@ -314,6 +314,20 @@ class AppointmentController {
                 return [];
             }
             
+            // First, check if appointments exist at all for this consultant
+            $checkStmt = $pdo->prepare("SELECT COUNT(*) as total FROM appointments WHERE consultant_id = ?");
+            $checkStmt->execute([$consultant_id]);
+            $totalAppointments = $checkStmt->fetchColumn();
+            error_log("Total appointments in database for consultant_id $consultant_id: $totalAppointments");
+            
+            if ($totalAppointments > 0) {
+                // Check if availability records exist for these appointments
+                $checkAvailStmt = $pdo->prepare("SELECT COUNT(*) as total FROM appointments a JOIN availability av ON a.availability_id = av.availability_id WHERE a.consultant_id = ?");
+                $checkAvailStmt->execute([$consultant_id]);
+                $totalWithAvail = $checkAvailStmt->fetchColumn();
+                error_log("Appointments with availability records: $totalWithAvail");
+            }
+            
             // Use COALESCE to handle potentially missing client_notes column gracefully
             $sql = "SELECT a.*, 
                            av.date AS date, 
