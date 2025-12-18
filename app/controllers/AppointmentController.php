@@ -340,11 +340,24 @@ class AppointmentController {
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
             error_log("Found " . count($result) . " appointments for consultant ID: " . $consultant_id);
             
+            // Log status breakdown
+            $statusBreakdown = [];
+            foreach ($result as $apt) {
+                $status = $apt['status'] ?? 'unknown';
+                $statusBreakdown[$status] = ($statusBreakdown[$status] ?? 0) + 1;
+            }
+            error_log("Status breakdown: " . json_encode($statusBreakdown));
+            
             // Log the first appointment if any
             if (count($result) > 0) {
                 error_log("First appointment data: " . json_encode($result[0]));
             } else {
                 error_log("No appointments found for consultant ID: " . $consultant_id);
+                // Double-check if appointments exist for this consultant
+                $checkStmt = $pdo->prepare("SELECT COUNT(*) as total, status FROM appointments WHERE consultant_id = ? GROUP BY status");
+                $checkStmt->execute([$consultant_id]);
+                $checkResults = $checkStmt->fetchAll(PDO::FETCH_ASSOC);
+                error_log("Direct appointment count by status: " . json_encode($checkResults));
             }
             
             return $result;
@@ -475,13 +488,33 @@ class AppointmentController {
 
     public static function markCompleted($appointment_id, $consultant_id) {
         global $pdo;
+        error_log("markCompleted called: appointment_id=$appointment_id, consultant_id=$consultant_id");
+        
         // Only allow if it is confirmed for this consultant
         $stmt = $pdo->prepare("SELECT a.*, av.date, av.end_time FROM appointments a JOIN availability av ON a.availability_id = av.availability_id WHERE a.appointment_id = ? AND a.consultant_id = ? AND a.status = 'confirmed'");
         $stmt->execute([$appointment_id, $consultant_id]);
         $appt = $stmt->fetch();
-        if (!$appt) return ['success'=>false, 'error'=>'Appointment not found or not eligible.'];
+        
+        if (!$appt) {
+            error_log("Appointment not found or not eligible. appointment_id=$appointment_id, consultant_id=$consultant_id");
+            // Check what the actual status is
+            $checkStmt = $pdo->prepare("SELECT appointment_id, consultant_id, status FROM appointments WHERE appointment_id = ?");
+            $checkStmt->execute([$appointment_id]);
+            $checkAppt = $checkStmt->fetch();
+            if ($checkAppt) {
+                error_log("Appointment exists but status is: " . $checkAppt['status'] . ", consultant_id match: " . ($checkAppt['consultant_id'] == $consultant_id ? 'yes' : 'no'));
+            } else {
+                error_log("Appointment does not exist in database");
+            }
+            return ['success'=>false, 'error'=>'Appointment not found or not eligible.'];
+        }
+        
         // (REMOVED time check) -- allow marking as completed at any time
-        $pdo->prepare("UPDATE appointments SET status = 'completed' WHERE appointment_id = ?")->execute([$appointment_id]);
+        $updateStmt = $pdo->prepare("UPDATE appointments SET status = 'completed' WHERE appointment_id = ?");
+        $updateStmt->execute([$appointment_id]);
+        $rowsAffected = $updateStmt->rowCount();
+        error_log("Updated appointment $appointment_id to completed. Rows affected: $rowsAffected");
+        
         $admin_id = $_SESSION['user_id'] ?? null;
         if ($admin_id) write_audit($admin_id, 'mark_completed', 'appointment', $appointment_id, json_encode(['consultant_id'=>$consultant_id]));
         return ['success'=>true];

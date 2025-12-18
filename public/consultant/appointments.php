@@ -125,6 +125,7 @@ function fetchAppointments() {
           statusCounts[a.status] = (statusCounts[a.status] || 0) + 1;
         });
         console.log('Appointment status breakdown:', statusCounts);
+        console.log('Full appointments data:', appts);
         
         appts.forEach(function(a, index) {
           console.log('Appointment', index, ':', {
@@ -301,16 +302,25 @@ function setupEventHandlers(appts) {
       data: { appointment_id: appointmentId },
       dataType: 'json',
       success: function(response) {
+        console.log('Mark completed response:', response);
         if (response.success) {
+          console.log('Appointment marked as completed successfully, refreshing list...');
           // Refresh the appointments list
           fetchAppointments();
         } else {
+          console.error('Failed to mark as completed:', response.error);
           alert(response.error || 'Failed to mark appointment as completed');
           $btn.prop('disabled', false).html('<i class="bi bi-check2-circle"></i> Mark as Completed');
         }
       },
-      error: function() {
-        alert('An error occurred while processing your request');
+      error: function(xhr, status, error) {
+        console.error('Error marking as completed:', status, error, xhr.responseText);
+        let errorMsg = 'An error occurred while processing your request';
+        try {
+          const response = JSON.parse(xhr.responseText);
+          errorMsg = response.error || errorMsg;
+        } catch (e) {}
+        alert(errorMsg);
         $btn.prop('disabled', false).html('<i class="bi bi-check2-circle"></i> Mark as Completed');
       }
     });
