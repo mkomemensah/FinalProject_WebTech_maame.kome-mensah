@@ -359,11 +359,65 @@ class AppointmentController {
                       COALESCE(av.start_time, '00:00:00') DESC";
             
             error_log("Executing SQL for consultant_id: " . $consultant_id);
+            error_log("Full SQL query: " . $sql);
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$consultant_id]);
             
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
             error_log("Found " . count($result) . " appointments for consultant ID: " . $consultant_id);
+            
+            // If result is empty but we know appointments exist, try a fallback query
+            if (count($result) == 0 && $totalAppointments > 0) {
+                error_log("WARNING: Main query returned 0 but database has $totalAppointments appointments!");
+                error_log("Trying fallback query without complex JOINs...");
+                
+                // Fallback: Get appointments with minimal JOINs, build data manually
+                $fallbackSql = "SELECT a.appointment_id, a.status, a.client_id, a.availability_id, a.consultant_id,
+                                       av.date, av.start_time, av.end_time
+                                FROM appointments a
+                                LEFT JOIN availability av ON a.availability_id = av.availability_id
+                                WHERE a.consultant_id = ?
+                                ORDER BY COALESCE(av.date, '1970-01-01') DESC, COALESCE(av.start_time, '00:00:00') DESC";
+                $fallbackStmt = $pdo->prepare($fallbackSql);
+                $fallbackStmt->execute([$consultant_id]);
+                $fallbackResult = $fallbackStmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                if (count($fallbackResult) > 0) {
+                    error_log("Fallback query found " . count($fallbackResult) . " appointments - using these results");
+                    // Build full result with client info
+                    foreach ($fallbackResult as &$apt) {
+                        // Get client info
+                        $clientStmt = $pdo->prepare("SELECT user_id, name, email FROM users WHERE user_id = ?");
+                        $clientStmt->execute([$apt['client_id']]);
+                        $client = $clientStmt->fetch();
+                        
+                        // Get feedback if exists
+                        $feedbackStmt = $pdo->prepare("SELECT consultant_notes, client_notes FROM feedback WHERE appointment_id = ?");
+                        $feedbackStmt->execute([$apt['appointment_id']]);
+                        $feedback = $feedbackStmt->fetch();
+                        
+                        // Get business problem if exists
+                        $problemStmt = $pdo->prepare("SELECT description FROM business_problems WHERE appointment_id = ?");
+                        $problemStmt->execute([$apt['appointment_id']]);
+                        $problem = $problemStmt->fetch();
+                        
+                        // Build full appointment data
+                        $apt['date'] = $apt['date'] ?? '';
+                        $apt['start_time'] = $apt['start_time'] ?? '';
+                        $apt['end_time'] = $apt['end_time'] ?? '';
+                        $apt['client_user_id'] = $client['user_id'] ?? $apt['client_id'];
+                        $apt['client_name'] = $client['name'] ?? 'Unknown Client';
+                        $apt['client_email'] = $client['email'] ?? '';
+                        $apt['consultant_notes'] = $feedback['consultant_notes'] ?? '';
+                        $apt['client_notes'] = $feedback['client_notes'] ?? '';
+                        $apt['business_problem'] = $problem['description'] ?? '';
+                    }
+                    $result = $fallbackResult;
+                    error_log("Using fallback query results: " . count($result) . " appointments");
+                } else {
+                    error_log("Even fallback query returned 0 results - consultant_id mismatch likely");
+                }
+            }
             
             // Log status breakdown with details
             $statusBreakdown = [];

@@ -98,7 +98,7 @@ function fetchAppointments() {
   console.log('Current session user_id:', '<?php echo $_SESSION["user_id"] ?? "not set"; ?>');
   console.log('Current session role:', '<?php echo $_SESSION["role"] ?? "not set"; ?>');
   
-  // First, test the diagnostic endpoint
+  // First, test the diagnostic endpoint (with error handling)
   $.ajax({
     url: '../api/test_appointments.php',
     dataType: 'json',
@@ -110,10 +110,12 @@ function fetchAppointments() {
       console.log('Appointments by status:', debug.appointments_by_status);
       console.log('Query result count:', debug.query_result_count);
       console.log('Sample appointment:', debug.query_result_sample);
+      console.log('Full debug:', debug);
       console.log('=====================');
     },
-    error: function() {
-      console.log('Could not fetch diagnostic info');
+    error: function(xhr, status, error) {
+      console.log('Could not fetch diagnostic info:', error);
+      console.log('Response:', xhr.responseText);
     }
   });
   

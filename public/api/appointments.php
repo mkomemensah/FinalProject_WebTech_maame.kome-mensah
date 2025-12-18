@@ -91,11 +91,32 @@ switch ($action) {
                     // If we got 0 appointments but there are appointments in DB, something is wrong with the query
                     if (count($appointments) == 0 && $totalCount > 0) {
                         error_log("WARNING: Query returned 0 appointments but database has $totalCount appointments!");
+                        
+                        // Check what consultant_ids are actually in the appointments table
+                        $checkConsultantStmt = $pdo->prepare("SELECT DISTINCT consultant_id, COUNT(*) as count FROM appointments GROUP BY consultant_id");
+                        $checkConsultantStmt->execute();
+                        $allConsultantIds = $checkConsultantStmt->fetchAll(PDO::FETCH_ASSOC);
+                        error_log("All consultant_ids in appointments table: " . json_encode($allConsultantIds));
+                        error_log("Looking for consultant_id: $consultant_id");
+                        
                         // Try a simpler query to see what's wrong
                         $simpleStmt = $pdo->prepare("SELECT a.*, av.date, av.start_time, av.end_time FROM appointments a LEFT JOIN availability av ON a.availability_id = av.availability_id WHERE a.consultant_id = ? LIMIT 5");
                         $simpleStmt->execute([$consultant_id]);
                         $simpleResults = $simpleStmt->fetchAll(PDO::FETCH_ASSOC);
                         error_log("Simple query result (first 5): " . json_encode($simpleResults));
+                        
+                        // If simple query also returns 0, consultant_id definitely doesn't match
+                        if (count($simpleResults) == 0) {
+                            error_log("CRITICAL: Even simple query returned 0 - consultant_id mismatch confirmed!");
+                            error_log("Consultant_id being queried: $consultant_id");
+                            error_log("Consultant_ids in appointments: " . json_encode(array_column($allConsultantIds, 'consultant_id')));
+                            
+                            // Try to find appointments with ANY consultant_id to see if data exists
+                            $anyStmt = $pdo->prepare("SELECT consultant_id, COUNT(*) as count FROM appointments GROUP BY consultant_id");
+                            $anyStmt->execute();
+                            $anyResults = $anyStmt->fetchAll(PDO::FETCH_ASSOC);
+                            error_log("All appointments by consultant_id: " . json_encode($anyResults));
+                        }
                     }
                 } else {
                     error_log("No consultant_id found for user_id: " . $_SESSION['user_id']);
@@ -123,6 +144,33 @@ switch ($action) {
             error_log("Final appointments count being sent: " . count($appointments));
             if (count($appointments) > 0) {
                 error_log("First appointment in response: " . json_encode($appointments[0]));
+            } else {
+                // If we're a consultant and got 0 appointments, do a final check
+                if ($_SESSION['role'] === 'consultant' && isset($consultant_id) && $consultant_id) {
+                    // Quick check if appointments exist for this consultant_id
+                    $quickCheck = $pdo->prepare("SELECT COUNT(*) FROM appointments WHERE consultant_id = ?");
+                    $quickCheck->execute([$consultant_id]);
+                    $quickCount = $quickCheck->fetchColumn();
+                    
+                    if ($quickCount > 0) {
+                        error_log("CRITICAL ERROR: $quickCount appointments exist for consultant_id $consultant_id but query returned 0!");
+                        error_log("This indicates a JOIN filtering issue or data mismatch.");
+                        
+                        // Try one more time with absolute minimal query
+                        $absoluteMin = $pdo->prepare("SELECT appointment_id, status FROM appointments WHERE consultant_id = ? LIMIT 1");
+                        $absoluteMin->execute([$consultant_id]);
+                        $absResult = $absoluteMin->fetch();
+                        if ($absResult) {
+                            error_log("Absolute minimal query works - appointment exists: " . json_encode($absResult));
+                            error_log("The issue is definitely with the JOINs in getConsultantAppointments()");
+                        }
+                    } else {
+                        // Check if appointments exist with different consultant_id
+                        $allAppts = $pdo->query("SELECT consultant_id, COUNT(*) as count FROM appointments GROUP BY consultant_id")->fetchAll(PDO::FETCH_ASSOC);
+                        error_log("All appointments by consultant_id: " . json_encode($allAppts));
+                        error_log("Your consultant_id: $consultant_id");
+                    }
+                }
             }
             
             header('Content-Type: application/json');
