@@ -85,6 +85,7 @@ $profilePic = 'https://ui-avatars.com/api/?name=' . urlencode($clientName) . '&b
       <button class="filter-pill" onclick="filterConsultants('Marketing')">Marketing</button>
       <button class="filter-pill" onclick="filterConsultants('Product Dev')">Product Dev</button>
       <button class="filter-pill" onclick="filterConsultants('Leadership')">Leadership</button>
+      <label for="consultantSearch" class="visually-hidden">Search consultants</label>
       <input class="form-control ms-auto" id="consultantSearch" style="max-width:250px;min-width:170px;" type="search" placeholder="Search..." oninput="searchConsultants()">
     </div>
   </div>

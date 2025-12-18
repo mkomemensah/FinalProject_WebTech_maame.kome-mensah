@@ -27,6 +27,7 @@ require_role('client');
     <button class="btn btn-outline-primary btn-sm filter-btn" data-tag="Marketing">Marketing</button>
     <button class="btn btn-outline-primary btn-sm filter-btn" data-tag="Product Dev">Product Dev</button>
     <button class="btn btn-outline-primary btn-sm filter-btn" data-tag="Leadership">Leadership</button>
+    <label for="consultantSearch" class="visually-hidden">Search consultants</label>
     <input class="form-control ms-2" id="consultantSearch" style="max-width:180px;" type="search" placeholder="Search by name..." oninput="renderConsultantCards()">
   </div>
   <div id="consultantList" class="consultant-card-list"></div>

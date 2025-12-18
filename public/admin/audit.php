@@ -32,6 +32,7 @@ $entries = fetch_audit(500);
     <div class="card-body">
       <div class="row mb-3">
         <div class="col-sm-6">
+          <label for="audit-search" class="visually-hidden">Search audit</label>
           <input id="audit-search" class="form-control" placeholder="Search audit (admin, action, target or details)" />
         </div>
         <div class="col-sm-6 text-sm-end mt-2 mt-sm-0">

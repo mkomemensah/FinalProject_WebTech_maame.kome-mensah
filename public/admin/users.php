@@ -16,6 +16,7 @@ require_role('admin');
 <div class="container mt-4">
   <h2 class="mb-3" style="color:#003A6C;">Manage Users</h2>
   <div class="d-flex gap-2 mb-3">
+    <label for="admin-search" class="visually-hidden">Search users</label>
     <input id="admin-search" class="form-control" placeholder="Search users by name or email...">
     <button id="search-btn" class="btn btn-primary">Search</button>
     <button id="refresh-btn" class="btn btn-outline-secondary">Refresh</button>
