@@ -1,5 +1,4 @@
 <?php
-require_once __DIR__ . '/../../app/controllers/FeedbackController.php';
 require_once __DIR__ . '/../../app/controllers/AppointmentController.php';
 require_once __DIR__ . '/../../app/middleware/auth_middleware.php';
 require_once __DIR__ . '/../../app/middleware/role_middleware.php';
@@ -80,27 +79,40 @@ switch ($action) {
         } 
         // Existing feedback handling for appointments
         else if (isset($input['appointment_id'])) {
-            if (isset($input['consultant_notes'])) {
-                require_role('consultant');
-                $data = [
-                    'appointment_id' => $input['appointment_id'],
-                    'consultant_notes' => $input['consultant_notes'],
-                    'consultant_id' => $_SESSION['user_id']
-                ];
-                $result = AppointmentController::submitFeedback($data);
-            } else if (isset($input['client_notes'])) {
-                require_role('client');
-                $data = [
-                    'appointment_id' => $input['appointment_id'],
-                    'client_notes' => $input['client_notes'],
-                    'client_id' => $_SESSION['user_id']
-                ];
-                $result = AppointmentController::submitClientFeedback($data);
-            } else {
-                $result = ['success' => false, 'error' => 'No feedback provided.'];
+            try {
+                if (isset($input['consultant_notes'])) {
+                    require_role('consultant');
+                    $data = [
+                        'appointment_id' => filter_var($input['appointment_id'], FILTER_VALIDATE_INT),
+                        'consultant_notes' => trim($input['consultant_notes'] ?? '')
+                    ];
+                    
+                    if (!$data['appointment_id'] || empty($data['consultant_notes'])) {
+                        sendResponse(['success' => false, 'error' => 'Appointment ID and consultant notes are required.'], 400);
+                    }
+                    
+                    $result = AppointmentController::submitFeedback($data);
+                } else if (isset($input['client_notes'])) {
+                    require_role('client');
+                    $data = [
+                        'appointment_id' => filter_var($input['appointment_id'], FILTER_VALIDATE_INT),
+                        'client_notes' => trim($input['client_notes'] ?? '')
+                    ];
+                    
+                    if (!$data['appointment_id'] || empty($data['client_notes'])) {
+                        sendResponse(['success' => false, 'error' => 'Appointment ID and client notes are required.'], 400);
+                    }
+                    
+                    $result = AppointmentController::submitClientFeedback($data);
+                } else {
+                    sendResponse(['success' => false, 'error' => 'No feedback provided.'], 400);
+                }
+                
+                sendResponse($result);
+            } catch (Exception $e) {
+                error_log("Error submitting feedback: " . $e->getMessage());
+                sendResponse(['success' => false, 'error' => 'Failed to submit feedback: ' . $e->getMessage()], 500);
             }
-            
-            sendResponse($result);
         } else {
             sendResponse(['success' => false, 'error' => 'Invalid request'], 400);
         }

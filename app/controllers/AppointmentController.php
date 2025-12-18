@@ -524,9 +524,26 @@ class AppointmentController {
     }
     public static function submitFeedback($data) {
         global $pdo;
-        $stmt = $pdo->prepare("INSERT INTO feedback (appointment_id, consultant_notes) VALUES (?, ?)");
-        $stmt->execute([$data['appointment_id'], $data['consultant_notes']]);
-        return ['success'=>true];
+        try {
+            // Check if feedback already exists for this appointment
+            $checkStmt = $pdo->prepare("SELECT feedback_id FROM feedback WHERE appointment_id = ?");
+            $checkStmt->execute([$data['appointment_id']]);
+            $existing = $checkStmt->fetch();
+            
+            if ($existing) {
+                // Update existing feedback
+                $stmt = $pdo->prepare("UPDATE feedback SET consultant_notes = ? WHERE appointment_id = ?");
+                $stmt->execute([$data['consultant_notes'], $data['appointment_id']]);
+            } else {
+                // Insert new feedback
+                $stmt = $pdo->prepare("INSERT INTO feedback (appointment_id, consultant_notes) VALUES (?, ?)");
+                $stmt->execute([$data['appointment_id'], $data['consultant_notes']]);
+            }
+            return ['success' => true, 'message' => 'Feedback submitted successfully'];
+        } catch (PDOException $e) {
+            error_log("Error in submitFeedback: " . $e->getMessage());
+            return ['success' => false, 'error' => 'Failed to submit feedback: ' . $e->getMessage()];
+        }
     }
     public static function submitClientFeedback($data) {
         global $pdo;
