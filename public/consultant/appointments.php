@@ -119,8 +119,21 @@ function fetchAppointments() {
         html = `<div class='col-12'><div class='text-center py-5'><img src='https://cdn-icons-png.flaticon.com/512/4076/4076549.png' alt='No Appointments' width='80' class='mb-2'/><h5 class='text-secondary'>No appointments found</h5></div></div>`;
       } else {
         console.log('Rendering', appts.length, 'appointments');
+        // Log status breakdown for debugging
+        const statusCounts = {};
+        appts.forEach(function(a) {
+          statusCounts[a.status] = (statusCounts[a.status] || 0) + 1;
+        });
+        console.log('Appointment status breakdown:', statusCounts);
+        
         appts.forEach(function(a, index) {
-          console.log('Appointment', index, ':', a);
+          console.log('Appointment', index, ':', {
+            id: a.appointment_id,
+            status: a.status,
+            client: a.client_name,
+            date: a.date,
+            time: a.start_time + ' - ' + a.end_time
+          });
           let badgeClass = getStatusBadge(a.status);
           let actionBtns = '';
           if (a.status === 'pending') {
@@ -130,6 +143,12 @@ function fetchAppointments() {
               </button>
               <button class='btn btn-outline-danger btn-sm reject-appointment me-2' data-appointment-id='${a.appointment_id}'>
                 <i class='bi bi-x-circle'></i> Reject
+              </button>
+            `;
+          } else if (a.status === 'confirmed') {
+            actionBtns = `
+              <button class='btn btn-outline-success btn-sm mark-completed me-2' data-appointment-id='${a.appointment_id}'>
+                <i class='bi bi-check2-circle'></i> Mark as Completed
               </button>
             `;
           } else if (a.status === 'completed') {
@@ -263,6 +282,38 @@ function setupEventHandlers(appts) {
       .always(function() {
         $btn.prop('disabled', false).html('<i class="bi bi-chat-left-text"></i> Give Feedback');
       });
+  });
+  
+  // Mark as completed button handler
+  $('#appt-list').off('click', '.mark-completed').on('click', '.mark-completed', function(){
+    const $btn = $(this);
+    const appointmentId = $btn.data('appointment-id');
+    
+    if (!confirm('Mark this appointment as completed?')) return;
+    
+    // Show loading state
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Marking...');
+    
+    // Send mark completed request
+    $.ajax({
+      url: '../api/appointments.php?action=mark_completed',
+      type: 'POST',
+      data: { appointment_id: appointmentId },
+      dataType: 'json',
+      success: function(response) {
+        if (response.success) {
+          // Refresh the appointments list
+          fetchAppointments();
+        } else {
+          alert(response.error || 'Failed to mark appointment as completed');
+          $btn.prop('disabled', false).html('<i class="bi bi-check2-circle"></i> Mark as Completed');
+        }
+      },
+      error: function() {
+        alert('An error occurred while processing your request');
+        $btn.prop('disabled', false).html('<i class="bi bi-check2-circle"></i> Mark as Completed');
+      }
+    });
   });
   
   // View details button handler
