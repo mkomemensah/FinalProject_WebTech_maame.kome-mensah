@@ -118,16 +118,38 @@ function fetchAppointments() {
     }
     $('#appt-list').html(html);
     // Feedback and Details event handlers w/ icon buttons
-    $('#appt-list .feedback-btn').off('click').on('click', function(){
-      // ...feedback logic (as before, using the appointment id)...
-      const idx = $(this).closest('.appt-card').parent().index();
-      $.getJSON('../api/appointments.php?action=list', (appts2)=>{
-        const a = appts2[idx];
-        $('#fb-appointment-id').val(a.appointment_id);
-        $('#fb-consultant-notes').val(a && a.consultant_notes?a.consultant_notes:'');
-        $('#fb-success').hide();
-        $('#feedback-modal').modal('show');
-      });
+    // Feedback button click handler with error handling
+    $('#appt-list').on('click', '.feedback-btn', function(){
+        const $btn = $(this);
+        const $card = $btn.closest('.appt-card');
+        const idx = $card.parent().index();
+        
+        // Show loading state
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...');
+        
+        $.getJSON('../api/appointments.php?action=list')
+            .done(function(appts2) {
+                const a = appts2[idx];
+                if (!a) {
+                    console.error('Appointment not found at index', idx);
+                    return;
+                }
+                
+                $('#fb-appointment-id').val(a.appointment_id);
+                $('#fb-consultant-notes').val(a.consultant_notes || '');
+                $('#fb-success').hide();
+                
+                // Initialize and show the modal
+                const feedbackModal = new bootstrap.Modal(document.getElementById('feedback-modal'));
+                feedbackModal.show();
+            })
+            .fail(function(jqXHR, textStatus, errorThrown) {
+                console.error('Error loading appointment details:', textStatus, errorThrown);
+                alert('Failed to load appointment details. Please try again.');
+            })
+            .always(function() {
+                $btn.prop('disabled', false).html('<i class="bi bi-chat-left-text"></i> Give Feedback');
+            });
     });
     $('#appt-list .view-details').off('click').on('click', function(){
       const idx = $(this).closest('.appt-card').parent().index();
@@ -159,17 +181,60 @@ $(document).ready(function() {
     $('#detailsModal').modal('show');
   });
 });
-$('#feedback-form').on('submit', function(e){
-  e.preventDefault();
-  var data = $(this).serialize();
-  $.post('../api/feedback.php?action=submit', data, function(resp) {
-    if(resp.success) {
-      $('#fb-success').html("<div class='alert alert-success'>Feedback submitted!</div>").show();
-      setTimeout(()=>{ $('#feedback-modal').modal('hide'); $('.modal-backdrop').remove(); fetchAppointments(); }, 1000);
-    } else {
-      $('#fb-success').html("<div class='alert alert-danger'>"+(resp.error||"Error")+"</div>").show();
+// Handle feedback form submission with event delegation
+$(document).on('submit', '#feedback-form', function(e) {
+    e.preventDefault();
+    
+    // Basic form validation
+    const notes = $('#fb-consultant-notes').val().trim();
+    if (!notes) {
+        $('#fb-success').html("<div class='alert alert-warning'>Please enter your feedback notes</div>").show();
+        return false;
     }
-  },'json');
+    
+    var $form = $(this);
+    var data = $form.serialize();
+    
+    // Show loading state
+    var $submitBtn = $form.find('button[type="submit"]');
+    var originalBtnText = $submitBtn.html();
+    $submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...');
+    
+    $.ajax({
+        url: '../api/feedback.php?action=submit',
+        type: 'POST',
+        data: data,
+        dataType: 'json',
+        success: function(resp) {
+            if(resp.success) {
+                $('#fb-success').html("<div class='alert alert-success'>Feedback submitted successfully!</div>").show();
+                setTimeout(function() { 
+                    $('#feedback-modal').modal('hide');
+                    $('.modal-backdrop').remove();
+                    fetchAppointments();
+                }, 1000);
+            } else {
+                $('#fb-success').html("<div class='alert alert-danger'>" + (resp.error || "An error occurred. Please try again.") + "</div>").show();
+                $submitBtn.prop('disabled', false).html(originalBtnText);
+            }
+        },
+        error: function(xhr) {
+            let errorMsg = 'Failed to submit feedback. Please try again.';
+            try {
+                const response = JSON.parse(xhr.responseText);
+                errorMsg = response.error || errorMsg;
+            } catch (e) {}
+            $('#fb-success').html("<div class='alert alert-danger">" + errorMsg + "</div>").show();
+            $submitBtn.prop('disabled', false).html(originalBtnText);
+        }
+    });
+});
+
+// Reset form when modal is closed
+$('#feedback-modal').on('hidden.bs.modal', function () {
+    $('#feedback-form')[0].reset();
+    $('#fb-success').hide().empty();
+    $('#feedback-form button[type="submit"]').prop('disabled', false).html('Submit Feedback');
 });
 </script>
 </body>
