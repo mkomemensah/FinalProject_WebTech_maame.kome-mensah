@@ -330,10 +330,11 @@ class AppointmentController {
             
             // Use COALESCE to handle potentially missing client_notes column gracefully
             // This query returns ALL appointments regardless of status (pending, confirmed, completed, cancelled)
+            // Using LEFT JOIN for availability in case some appointments don't have availability records
             $sql = "SELECT a.*, 
-                           av.date AS date, 
-                           av.start_time AS start_time, 
-                           av.end_time AS end_time, 
+                           COALESCE(av.date, '') AS date, 
+                           COALESCE(av.start_time, '') AS start_time, 
+                           COALESCE(av.end_time, '') AS end_time, 
                            u.user_id AS client_user_id, 
                            u.name AS client_name, 
                            u.email AS client_email,
@@ -341,7 +342,7 @@ class AppointmentController {
                            COALESCE(f.client_notes, '') AS client_notes, 
                            COALESCE(bp.description, '') AS business_problem
                     FROM appointments a
-                    INNER JOIN availability av ON a.availability_id = av.availability_id
+                    LEFT JOIN availability av ON a.availability_id = av.availability_id
                     INNER JOIN users u ON a.client_id = u.user_id
                     LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
                     LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
@@ -354,8 +355,8 @@ class AppointmentController {
                         WHEN 'cancelled' THEN 4 
                         ELSE 5 
                       END,
-                      av.date DESC, 
-                      av.start_time DESC";
+                      COALESCE(av.date, '1970-01-01') DESC, 
+                      COALESCE(av.start_time, '00:00:00') DESC";
             
             error_log("Executing SQL for consultant_id: " . $consultant_id);
             $stmt = $pdo->prepare($sql);
@@ -364,13 +365,22 @@ class AppointmentController {
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
             error_log("Found " . count($result) . " appointments for consultant ID: " . $consultant_id);
             
-            // Log status breakdown
+            // Log status breakdown with details
             $statusBreakdown = [];
             foreach ($result as $apt) {
                 $status = $apt['status'] ?? 'unknown';
                 $statusBreakdown[$status] = ($statusBreakdown[$status] ?? 0) + 1;
             }
             error_log("Status breakdown: " . json_encode($statusBreakdown));
+            
+            // Log completed appointments specifically
+            $completedAppts = array_filter($result, function($apt) {
+                return strtolower($apt['status'] ?? '') === 'completed';
+            });
+            error_log("Completed appointments count: " . count($completedAppts));
+            if (count($completedAppts) > 0) {
+                error_log("First completed appointment: " . json_encode(reset($completedAppts)));
+            }
             
             // Log the first appointment if any
             if (count($result) > 0) {

@@ -135,6 +135,12 @@ function fetchAppointments() {
         console.log('Appointment status breakdown:', statusCounts);
         console.log('Full appointments data:', appts);
         
+        // Count completed appointments specifically
+        const completedCount = appts.filter(function(a) {
+          return (a.status || '').toLowerCase() === 'completed';
+        }).length;
+        console.log('Completed appointments in response:', completedCount);
+        
         appts.forEach(function(a, index) {
           console.log('Processing appointment', index, ':', {
             id: a.appointment_id,
