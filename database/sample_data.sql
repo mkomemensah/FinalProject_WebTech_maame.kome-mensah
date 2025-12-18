@@ -12,7 +12,7 @@ VALUES (
   'active'
 );
 
--- Sample Clients (passwords: Client123!, Client456!)
+-- Sample Clients (passwords: Client123!)
 INSERT INTO users (name, email, password, phone, role, status)
 VALUES
   ('Esi Mensah', 'esi.cl@client.com', '$2y$10$MZ0KlEwK.JYqXwJ0bI6yuOXYECGbG/nCi69Wvq8AozZtl5ELfqHpS', '0501112233', 'client', 'active'),
