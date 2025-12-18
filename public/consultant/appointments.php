@@ -93,30 +93,43 @@ function getStatusBadge(status) {
   return map[status]||'status-badge';
 }
 function fetchAppointments() {
-  $.getJSON('../api/appointments.php?action=list', function(appts) {
-    let html = '';
-    if (!appts.length) {
-      html = `<div class='col-12'><div class='text-center py-5'><img src='https://cdn-icons-png.flaticon.com/512/4076/4076549.png' alt='No Appointments' width='80' class='mb-2'/><h5 class='text-secondary'>No appointments found</h5></div></div>`;
-    } else {
-      appts.forEach(function(a) {
-        let badgeClass = getStatusBadge(a.status);
-        let feedbackBtn = '';
-        if(a.status === 'completed') {
-          feedbackBtn = `<button class='btn btn-brand feedback btn-sm feedback-btn me-2'><i class="bi bi-chat-left-text"></i> Give Feedback</button>`;
-        }
-        let detailsBtn = `<button class='btn btn-brand details btn-sm view-details'><i class="bi bi-info-circle"></i> Details</button>`;
-        html += `<div class='col-md-6 col-lg-4'><div class='appt-card card h-100 shadow-sm p-3'>
-          <div class='d-flex align-items-center mb-3'>
-            <div class='rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm' style='width:44px;height:44px;font-weight:bold;font-size:1.2rem;'>${a.client_name?a.client_name.charAt(0):'?'}</div>
-            <div class='ms-3'><div class='fw-bold mb-1'>${a.client_name||'-'}</div><div class='small text-secondary'>${a.email||''}</div></div>
-          </div>
-          <div class='mb-2'><b>Date:</b> ${a.date}&nbsp;&nbsp;<b>Time:</b> ${a.start_time} - ${a.end_time}</div>
-          <div class='mb-2'><span class='${badgeClass}'>${a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span></div>
-          <div>${feedbackBtn}${detailsBtn}</div>
-        </div></div>`;
-      });
-    }
-    $('#appt-list').html(html);
+  console.log('Fetching appointments...');
+  $.ajax({
+    url: '../api/appointments.php?action=list',
+    dataType: 'json',
+    success: function(appts) {
+      console.log('Appointments API response:', appts);
+      let html = '';
+      
+      if (!appts || !Array.isArray(appts)) {
+        console.error('Invalid appointments data received:', appts);
+        html = `<div class='col-12'><div class='alert alert-danger'>Error loading appointments. Please try again later.</div></div>`;
+      } else if (appts.length === 0) {
+        console.log('No appointments found');
+        html = `<div class='col-12'><div class='text-center py-5'><img src='https://cdn-icons-png.flaticon.com/512/4076/4076549.png' alt='No Appointments' width='80' class='mb-2'/><h5 class='text-secondary'>No appointments found</h5></div></div>`;
+      } else {
+        console.log('Rendering', appts.length, 'appointments');
+        appts.forEach(function(a, index) {
+          console.log('Appointment', index, ':', a);
+          let badgeClass = getStatusBadge(a.status);
+          let feedbackBtn = '';
+          if(a.status === 'completed') {
+            feedbackBtn = `<button class='btn btn-brand feedback btn-sm feedback-btn me-2' data-appointment-id='${a.appointment_id}'><i class="bi bi-chat-left-text"></i> Give Feedback</button>`;
+          }
+          let detailsBtn = `<button class='btn btn-brand details btn-sm view-details' data-client='${a.client_name||''}' data-email='${a.client_email||''}' data-date='${a.date}' data-time='${a.start_time} - ${a.end_time}' data-problem='${a.business_problem||'No details available'}'><i class="bi bi-info-circle"></i> Details</button>`;
+          
+          html += `<div class='col-md-6 col-lg-4'><div class='appt-card card h-100 shadow-sm p-3'>
+            <div class='d-flex align-items-center mb-3'>
+              <div class='rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm' style='width:44px;height:44px;font-weight:bold;font-size:1.2rem;'>${a.client_name?a.client_name.charAt(0).toUpperCase():'?'}</div>
+              <div class='ms-3'><div class='fw-bold mb-1'>${a.client_name||'Unknown Client'}</div><div class='small text-secondary'>${a.client_email||''}</div></div>
+            </div>
+            <div class='mb-2'><b>Date:</b> ${a.date || 'N/A'}&nbsp;&nbsp;<b>Time:</b> ${a.start_time || ''} - ${a.end_time || ''}</div>
+            <div class='mb-2'><span class='${badgeClass}'>${a.status ? a.status.charAt(0).toUpperCase() + a.status.slice(1) : 'Unknown Status'}</span></div>
+            <div>${feedbackBtn}${detailsBtn}</div>
+          </div></div>`;
+        });
+      }
+      $('#appt-list').html(html);
     // Feedback and Details event handlers w/ icon buttons
     // Feedback button click handler with error handling
     $('#appt-list').on('click', '.feedback-btn', function(){
@@ -155,7 +168,12 @@ function fetchAppointments() {
       const idx = $(this).closest('.appt-card').parent().index();
       $.getJSON('../api/appointments.php?action=list', (appts2)=>{
         const a = appts2[idx];
-        $('#detailsModalBody').html(`<b>Client:</b> ${a.client_name}<br><b>Email:</b> ${a.email||'-'}<br><b>Date:</b> ${a.date}<br><b>Time:</b> ${a.start_time} - ${a.end_time}<br><b>Business Problem:</b><br>${a.business_problem||'-'}`);
+        const modalContent = '<b>Client:</b> ' + (a.client_name || 'N/A') + 
+                          '<br><b>Email:</b> ' + (a.client_email || '-') + 
+                          '<br><b>Date:</b> ' + (a.date || 'N/A') + 
+                          '<br><b>Time:</b> ' + (a.start_time || '') + ' - ' + (a.end_time || '') + 
+                          '<br><b>Business Problem:</b><br>' + (a.business_problem || '-');
+        $('#detailsModalBody').html(modalContent);
         $('#detailsModal').modal('show');
       });
     });
@@ -177,7 +195,12 @@ $(document).ready(function() {
           d = $(this).data('date'),
           t = $(this).data('time'),
           p = $(this).data('problem');
-    $('#detailsModalBody').html(`<b>Client:</b> ${c}<br><b>Email:</b> ${e}<br><b>Date:</b> ${d}<br><b>Time:</b> ${t}<br><b>Business Problem:</b><br>${p}`);
+    const modalContent = '<b>Client:</b> ' + (c || 'N/A') + 
+                        '<br><b>Email:</b> ' + (e || '-') + 
+                        '<br><b>Date:</b> ' + (d || 'N/A') + 
+                        '<br><b>Time:</b> ' + (t || '') + 
+                        '<br><b>Business Problem:</b><br>' + (p || '-');
+    $('#detailsModalBody').html(modalContent);
     $('#detailsModal').modal('show');
   });
 });

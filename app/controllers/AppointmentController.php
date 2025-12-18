@@ -305,21 +305,44 @@ class AppointmentController {
     
     public static function getConsultantAppointments($consultant_id) {
         global $pdo;
-        $stmt = $pdo->prepare(
-            "SELECT a.*, av.date AS date, av.start_time AS start_time, av.end_time AS end_time, 
-                    u.user_id AS client_user_id, u.name AS client_name, u.email AS client_email,
-                    f.consultant_notes, f.client_notes, bp.description AS business_problem
-             FROM appointments a
-             JOIN availability av ON a.availability_id = av.availability_id
-             JOIN users u ON a.client_id = u.user_id
-             JOIN consultants co ON a.consultant_id = co.consultant_id
-             LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
-             LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
-             WHERE a.consultant_id = ?
-             ORDER BY av.date DESC, av.start_time DESC"
-        );
-        $stmt->execute([$consultant_id]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        error_log("Getting appointments for consultant ID: " . $consultant_id);
+        
+        try {
+            $sql = "SELECT a.*, av.date AS date, av.start_time AS start_time, av.end_time AS end_time, 
+                           u.user_id AS client_user_id, u.name AS client_name, u.email AS client_email,
+                           f.consultant_notes, f.client_notes, bp.description AS business_problem
+                    FROM appointments a
+                    JOIN availability av ON a.availability_id = av.availability_id
+                    JOIN users u ON a.client_id = u.user_id
+                    JOIN consultants co ON a.consultant_id = co.consultant_id
+                    LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
+                    LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
+                    WHERE a.consultant_id = ?
+                    ORDER BY av.date DESC, av.start_time DESC";
+            
+            error_log("Executing SQL: " . $sql);
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$consultant_id]);
+            
+            $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            error_log("Found " . count($result) . " appointments");
+            
+            // Log the first appointment if any
+            if (count($result) > 0) {
+                error_log("First appointment: " . print_r($result[0], true));
+            } else {
+                error_log("No appointments found for consultant ID: " . $consultant_id);
+            }
+            
+            return $result;
+        } catch (PDOException $e) {
+            error_log("Database error in getConsultantAppointments: " . $e->getMessage());
+            error_log("SQL Error Info: " . print_r($pdo->errorInfo(), true));
+            return [];
+        } catch (Exception $e) {
+            error_log("Error in getConsultantAppointments: " . $e->getMessage());
+            return [];
+        }
     }
     public static function getAllAppointments() {
         global $pdo;
