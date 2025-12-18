@@ -329,6 +329,7 @@ class AppointmentController {
             }
             
             // Use COALESCE to handle potentially missing client_notes column gracefully
+            // This query returns ALL appointments regardless of status (pending, confirmed, completed, cancelled)
             $sql = "SELECT a.*, 
                            av.date AS date, 
                            av.start_time AS start_time, 
@@ -340,12 +341,21 @@ class AppointmentController {
                            COALESCE(f.client_notes, '') AS client_notes, 
                            COALESCE(bp.description, '') AS business_problem
                     FROM appointments a
-                    JOIN availability av ON a.availability_id = av.availability_id
-                    JOIN users u ON a.client_id = u.user_id
+                    INNER JOIN availability av ON a.availability_id = av.availability_id
+                    INNER JOIN users u ON a.client_id = u.user_id
                     LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
                     LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
                     WHERE a.consultant_id = ?
-                    ORDER BY av.date DESC, av.start_time DESC";
+                    ORDER BY 
+                      CASE a.status 
+                        WHEN 'pending' THEN 1 
+                        WHEN 'confirmed' THEN 2 
+                        WHEN 'completed' THEN 3 
+                        WHEN 'cancelled' THEN 4 
+                        ELSE 5 
+                      END,
+                      av.date DESC, 
+                      av.start_time DESC";
             
             error_log("Executing SQL for consultant_id: " . $consultant_id);
             $stmt = $pdo->prepare($sql);

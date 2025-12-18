@@ -83,13 +83,15 @@ require_role('consultant');
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
 function getStatusBadge(status) {
+  // Normalize status to lowercase for comparison
+  const normalizedStatus = (status || '').toLowerCase();
   let map = {
     'completed': 'status-badge status-completed',
     'confirmed': 'status-badge status-confirmed',
     'pending': 'status-badge status-pending',
     'cancelled': 'status-badge status-cancelled',
   };
-  return map[status]||'status-badge';
+  return map[normalizedStatus] || 'status-badge';
 }
 function fetchAppointments() {
   console.log('Fetching appointments...');
@@ -134,16 +136,20 @@ function fetchAppointments() {
         console.log('Full appointments data:', appts);
         
         appts.forEach(function(a, index) {
-          console.log('Appointment', index, ':', {
+          console.log('Processing appointment', index, ':', {
             id: a.appointment_id,
             status: a.status,
             client: a.client_name,
             date: a.date,
             time: a.start_time + ' - ' + a.end_time
           });
-          let badgeClass = getStatusBadge(a.status);
+          
+          // Ensure status is lowercase for comparison
+          const status = (a.status || '').toLowerCase();
+          let badgeClass = getStatusBadge(status);
           let actionBtns = '';
-          if (a.status === 'pending') {
+          
+          if (status === 'pending') {
             actionBtns = `
               <button class='btn btn-success btn-sm accept-appointment me-2' data-appointment-id='${a.appointment_id}'>
                 <i class='bi bi-check-circle'></i> Accept
@@ -152,14 +158,23 @@ function fetchAppointments() {
                 <i class='bi bi-x-circle'></i> Reject
               </button>
             `;
-          } else if (a.status === 'confirmed') {
+          } else if (status === 'confirmed') {
             actionBtns = `
               <button class='btn btn-outline-success btn-sm mark-completed me-2' data-appointment-id='${a.appointment_id}'>
                 <i class='bi bi-check2-circle'></i> Mark as Completed
               </button>
             `;
-          } else if (a.status === 'completed') {
-            actionBtns = `<button class='btn btn-brand feedback btn-sm feedback-btn me-2' data-appointment-id='${a.appointment_id}'><i class="bi bi-chat-left-text"></i> Give Feedback</button>`;
+          } else if (status === 'completed') {
+            // Show feedback button for completed appointments
+            const hasFeedback = a.consultant_notes && a.consultant_notes.trim() !== '';
+            if (hasFeedback) {
+              actionBtns = `<button class='btn btn-brand feedback btn-sm feedback-btn me-2' data-appointment-id='${a.appointment_id}'><i class="bi bi-pencil-square"></i> Edit Feedback</button>`;
+            } else {
+              actionBtns = `<button class='btn btn-brand feedback btn-sm feedback-btn me-2' data-appointment-id='${a.appointment_id}'><i class="bi bi-chat-left-text"></i> Give Feedback</button>`;
+            }
+          } else if (status === 'cancelled') {
+            // Cancelled appointments - no action buttons, just show details
+            actionBtns = '';
           }
           let detailsBtn = `<button class='btn btn-brand details btn-sm view-details' data-client='${(a.client_name||'').replace(/'/g, "\\'")}' data-email='${(a.client_email||'').replace(/'/g, "\\'")}' data-date='${a.date||''}' data-time='${a.start_time||''} - ${a.end_time||''}' data-problem='${(a.business_problem||'No details available').replace(/'/g, "\\'")}'><i class="bi bi-info-circle"></i> Details</button>`;
           
@@ -169,7 +184,7 @@ function fetchAppointments() {
               <div class='ms-3'><div class='fw-bold mb-1'>${a.client_name||'Unknown Client'}</div><div class='small text-secondary'>${a.client_email||''}</div></div>
             </div>
             <div class='mb-2'><b>Date:</b> ${a.date || 'N/A'}&nbsp;&nbsp;<b>Time:</b> ${a.start_time || ''} - ${a.end_time || ''}</div>
-            <div class='mb-2'><span class='${badgeClass}'>${a.status ? a.status.charAt(0).toUpperCase() + a.status.slice(1) : 'Unknown Status'}</span></div>
+            <div class='mb-2'><span class='${badgeClass}'>${status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown Status'}</span></div>
             <div class='d-flex flex-wrap align-items-center'>${actionBtns}${detailsBtn}</div>
           </div></div>`;
         });
