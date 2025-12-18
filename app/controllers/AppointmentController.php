@@ -306,19 +306,20 @@ class AppointmentController {
     public static function getConsultantAppointments($consultant_id) {
         global $pdo;
         $stmt = $pdo->prepare(
-            "SELECT a.*, av.date AS date, av.start_time AS start_time, av.end_time AS end_time, cl.user_id AS client_user_id, cli.name AS client_name, cli.email AS client_email,
-            f.consultant_notes, f.client_notes
+            "SELECT a.*, av.date AS date, av.start_time AS start_time, av.end_time AS end_time, 
+                    u.user_id AS client_user_id, u.name AS client_name, u.email AS client_email,
+                    f.consultant_notes, f.client_notes, bp.description AS business_problem
              FROM appointments a
-             JOIN users cli ON a.client_id = cli.user_id
-             JOIN consultants co ON a.consultant_id = co.consultant_id
              JOIN availability av ON a.availability_id = av.availability_id
-             JOIN users cl ON a.client_id = cl.user_id
+             JOIN users u ON a.client_id = u.user_id
+             JOIN consultants co ON a.consultant_id = co.consultant_id
              LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
+             LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
              WHERE a.consultant_id = ?
              ORDER BY av.date DESC, av.start_time DESC"
         );
         $stmt->execute([$consultant_id]);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     public static function getAllAppointments() {
         global $pdo;
