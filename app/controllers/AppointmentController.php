@@ -500,21 +500,70 @@ class AppointmentController {
     }
     public static function getAllAppointments() {
         global $pdo;
-        $sql = "SELECT a.*, av.date AS date, av.start_time AS start_time, av.end_time AS end_time,
-            c.consultant_id, cu.name AS consultant_name, cu.email AS consultant_email,
-            cl.user_id AS client_user_id, cl.name AS client_name, cl.email AS client_email,
-            f.consultant_notes, f.client_notes, bp.description AS problem_description
-            FROM appointments a
-            JOIN availability av ON a.availability_id = av.availability_id
-            JOIN consultants c ON a.consultant_id = c.consultant_id
-            JOIN users cu ON c.user_id = cu.user_id
-            JOIN users cl ON a.client_id = cl.user_id
-            LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
-            LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
-            ORDER BY av.date DESC, av.start_time DESC";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Check if business_problems table exists
+        try {
+            $tableCheck = $pdo->query("SHOW TABLES LIKE 'business_problems'")->fetch();
+            $hasBusinessProblems = $tableCheck !== false;
+        } catch (Exception $e) {
+            $hasBusinessProblems = false;
+        }
+        
+        // Use LEFT JOINs to handle missing records gracefully
+        if ($hasBusinessProblems) {
+            $sql = "SELECT a.*, 
+                           COALESCE(av.date, '') AS date, 
+                           COALESCE(av.start_time, '') AS start_time, 
+                           COALESCE(av.end_time, '') AS end_time,
+                           c.consultant_id, 
+                           COALESCE(cu.name, 'Unknown Consultant') AS consultant_name, 
+                           COALESCE(cu.email, '') AS consultant_email,
+                           COALESCE(cl.user_id, a.client_id) AS client_user_id, 
+                           COALESCE(cl.name, 'Unknown Client') AS client_name, 
+                           COALESCE(cl.email, '') AS client_email,
+                           COALESCE(f.consultant_notes, '') AS consultant_notes, 
+                           COALESCE(f.client_notes, '') AS client_notes, 
+                           COALESCE(bp.description, '') AS problem_description
+                    FROM appointments a
+                    LEFT JOIN availability av ON a.availability_id = av.availability_id
+                    LEFT JOIN consultants c ON a.consultant_id = c.consultant_id
+                    LEFT JOIN users cu ON c.user_id = cu.user_id
+                    LEFT JOIN users cl ON a.client_id = cl.user_id
+                    LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
+                    LEFT JOIN business_problems bp ON bp.appointment_id = a.appointment_id
+                    ORDER BY COALESCE(av.date, '1970-01-01') DESC, COALESCE(av.start_time, '00:00:00') DESC";
+        } else {
+            // business_problems table doesn't exist
+            $sql = "SELECT a.*, 
+                           COALESCE(av.date, '') AS date, 
+                           COALESCE(av.start_time, '') AS start_time, 
+                           COALESCE(av.end_time, '') AS end_time,
+                           c.consultant_id, 
+                           COALESCE(cu.name, 'Unknown Consultant') AS consultant_name, 
+                           COALESCE(cu.email, '') AS consultant_email,
+                           COALESCE(cl.user_id, a.client_id) AS client_user_id, 
+                           COALESCE(cl.name, 'Unknown Client') AS client_name, 
+                           COALESCE(cl.email, '') AS client_email,
+                           COALESCE(f.consultant_notes, '') AS consultant_notes, 
+                           COALESCE(f.client_notes, '') AS client_notes, 
+                           '' AS problem_description
+                    FROM appointments a
+                    LEFT JOIN availability av ON a.availability_id = av.availability_id
+                    LEFT JOIN consultants c ON a.consultant_id = c.consultant_id
+                    LEFT JOIN users cu ON c.user_id = cu.user_id
+                    LEFT JOIN users cl ON a.client_id = cl.user_id
+                    LEFT JOIN feedback f ON f.appointment_id = a.appointment_id
+                    ORDER BY COALESCE(av.date, '1970-01-01') DESC, COALESCE(av.start_time, '00:00:00') DESC";
+        }
+        
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Error in getAllAppointments: " . $e->getMessage());
+            return [];
+        }
     }
     public static function submitProblem($data) {
         global $pdo;
